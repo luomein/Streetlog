@@ -1,6 +1,7 @@
 """Copy the public website and generate its published GeoJSON index."""
 import argparse
 import json
+import os
 import shutil
 from pathlib import Path
 
@@ -75,7 +76,12 @@ def build_pages(repository: Path, output: Path) -> None:
     photos = [name for name in names if Path(name).suffix.lower() in image_types]
     add_missing_categories(config, folder, files)
     (output / "site.json").write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    manifest = json.dumps({"files": files, "photos": photos}, ensure_ascii=False, indent=2) + "\n"
+    manifest = json.dumps({
+        "files": files,
+        "photos": photos,
+        "source_branch": os.environ.get("GITHUB_REF_NAME", "main"),
+        "source_folder": (published_source.relative_to(repository) / relative_folder).as_posix(),
+    }, ensure_ascii=False, indent=2) + "\n"
     (folder / "index.json").write_text(manifest, encoding="utf-8")
     print(f"Indexed {len(files)} GeoJSON files and {len(photos)} photos in docs/{relative_folder}/.")
 

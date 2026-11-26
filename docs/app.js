@@ -747,7 +747,7 @@ function init() {
   const snapStreets = byId("snap-streets");
   snapStreets.checked = true;
 
-  function bindPublishedOuting(layer, source, availablePhotos) {
+  function bindPublishedOuting(layer, source, availablePhotos, repositoryFile) {
     const properties = layer.feature?.properties ?? {};
     const names = Array.isArray(properties.photoFileNames) ? properties.photoFileNames : [];
     const photos = [...new Set(names)].filter(name => availablePhotos.has(name));
@@ -763,10 +763,10 @@ function init() {
       description.textContent = typeof properties.description === "string" && properties.description.trim()
         ? properties.description.trim() : "No description";
       const link = document.createElement("a");
-      link.href = source.href;
+      link.href = repositoryFile ?? source.href;
       link.target = "_blank";
       link.rel = "noopener";
-      link.textContent = "Open GeoJSON";
+      link.textContent = repositoryFile ? "Open GeoJSON on GitHub" : "Open GeoJSON";
       container.append(category, description, link);
       if (photos.length) container.append(gallery(preview));
       return container;
@@ -1669,6 +1669,7 @@ function init() {
     let folder;
     let files;
     let availablePhotos;
+    let repositoryFolder;
     try {
       const config = await siteConfig;
       if (!config) return;
@@ -1682,6 +1683,12 @@ function init() {
       if (!response.ok) throw new Error("Could not read the GeoJSON folder’s index.json.");
       const manifest = await response.json();
       ({ files } = manifest);
+      const { source_branch: branch, source_folder: sourceFolder } = manifest;
+      if (githubRepo && typeof branch === "string" && branch &&
+          typeof sourceFolder === "string" && sourceFolder) {
+        const location = [...githubRepo, "blob", ...branch.split("/"), ...sourceFolder.split("/")];
+        repositoryFolder = "https://github.com/" + location.map(encodeURIComponent).join("/") + "/";
+      }
       availablePhotos = new Set(Array.isArray(manifest.photos) ? manifest.photos.filter(name =>
         typeof name === "string" && /^[^/\\]+\.(?:jpe?g|png|webp|avif|gif)$/i.test(name)) : []);
       if (!Array.isArray(files) || !files.every(name =>
@@ -1707,7 +1714,8 @@ function init() {
         const data = await response.json();
         const plotted = plotImportedRoute({ id, name, data, snapped: containsSnappedRoute(data) });
         if (!plotted) throw new Error("No map geometry found.");
-        importLayers.get(id).eachLayer(layer => bindPublishedOuting(layer, url, availablePhotos));
+        const repositoryFile = repositoryFolder && repositoryFolder + encodeURIComponent(name);
+        importLayers.get(id).eachLayer(layer => bindPublishedOuting(layer, url, availablePhotos, repositoryFile));
         bounds.extend(plotted);
         loaded++;
       } catch {
