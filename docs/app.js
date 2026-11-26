@@ -743,11 +743,30 @@ function init() {
   const snapStreets = byId("snap-streets");
   snapStreets.checked = true;
 
-  function bindPublishedPhotos(layer, folder, availablePhotos) {
-    const names = layer.feature?.properties?.photoFileNames;
-    if (!Array.isArray(names)) return;
+  function bindPublishedOuting(layer, source, availablePhotos) {
+    const properties = layer.feature?.properties ?? {};
+    const names = Array.isArray(properties.photoFileNames) ? properties.photoFileNames : [];
     const photos = [...new Set(names)].filter(name => availablePhotos.has(name));
-    if (!photos.length) return;
+    const folder = new URL(".", source);
+
+    function details(preview) {
+      const container = document.createElement("div");
+      container.className = "published-outing-details";
+      const category = document.createElement("p");
+      category.textContent = `Category: ${categoryName(properties.category)}`;
+      const description = document.createElement("p");
+      description.className = "published-outing-description";
+      description.textContent = typeof properties.description === "string" && properties.description.trim()
+        ? properties.description.trim() : "No description";
+      const link = document.createElement("a");
+      link.href = source.href;
+      link.target = "_blank";
+      link.rel = "noopener";
+      link.textContent = "Open GeoJSON";
+      container.append(category, description, link);
+      if (photos.length) container.append(gallery(preview));
+      return container;
+    }
 
     function gallery(preview) {
       const container = document.createElement("div");
@@ -779,9 +798,35 @@ function init() {
       return container;
     }
 
-    layer.bindTooltip(() => gallery(true), { sticky: true, direction: "top" });
-    layer.bindPopup(() => gallery(false), { maxWidth: 360 });
-    layer.on("popupopen", () => layer.closeTooltip());
+    const preview = details(true);
+    const tooltip = L.tooltip({
+      interactive: true, direction: "top", opacity: 1, className: "published-outing-tooltip"
+    }).setContent(preview);
+    let closeTimer;
+    const keepOpen = () => clearTimeout(closeTimer);
+    const close = () => {
+      keepOpen();
+      tooltip.remove();
+    };
+    const scheduleClose = () => {
+      keepOpen();
+      closeTimer = setTimeout(() => {
+        if (!preview.contains(document.activeElement)) close();
+      }, 250);
+    };
+
+    layer.on("mouseover", event => {
+      keepOpen();
+      if (!layer.isPopupOpen() && !map.hasLayer(tooltip)) {
+        tooltip.setLatLng(event.latlng).addTo(map);
+      }
+    });
+    layer.on("mouseout", scheduleClose);
+    preview.addEventListener("mouseenter", keepOpen);
+    preview.addEventListener("mouseleave", scheduleClose);
+    preview.addEventListener("focusout", scheduleClose);
+    layer.bindPopup(() => details(false), { maxWidth: 360 });
+    layer.on("popupopen remove", close);
   }
 
   function plotImportedRoute(route) {
@@ -1650,11 +1695,7 @@ function init() {
     for (const name of new Set(files)) {
       const url = new URL(encodeURIComponent(name), folder);
       const id = `published:${url.pathname}`;
-      const existing = importLayers.get(id);
-      if (existing) {
-        existing.eachLayer(layer => bindPublishedPhotos(layer, folder, availablePhotos));
-        continue;
-      }
+      if (importLayers.has(id)) continue;
       publishedStatus.textContent = `Loading published route · ${name}`;
       try {
         const response = await fetch(url, { cache: "no-cache" });
@@ -1662,7 +1703,7 @@ function init() {
         const data = await response.json();
         const plotted = plotImportedRoute({ id, name, data, snapped: containsSnappedRoute(data) });
         if (!plotted) throw new Error("No map geometry found.");
-        importLayers.get(id).eachLayer(layer => bindPublishedPhotos(layer, folder, availablePhotos));
+        importLayers.get(id).eachLayer(layer => bindPublishedOuting(layer, url, availablePhotos));
         bounds.extend(plotted);
         loaded++;
       } catch {
