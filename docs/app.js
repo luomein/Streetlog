@@ -2071,7 +2071,7 @@ function init() {
     draftPhotoStatus.textContent = "";
     renderDraftAlbum();
     status.textContent = message;
-    hint.textContent = "Export or discard this outing before starting another.";
+    hint.textContent = defaultHint;
     syncCaptureControls();
     refreshMap();
   }
