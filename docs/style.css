@@ -13,7 +13,9 @@ main{min-width:0;padding-left:env(safe-area-inset-left,0px);padding-right:env(sa
 aside{min-width:0;overflow-wrap:anywhere;padding:clamp(24px,4vw,48px) clamp(18px,3vw,36px);display:flex;flex-direction:column;gap:23px;border-right:1px solid var(--line)}
 p{margin:0;color:var(--muted)}
 .record{padding:16px;background:white;border:1px solid var(--line);border-radius:16px}
-.state{display:flex;align-items:center;gap:8px;font-size:.875rem;font-weight:680;margin-bottom:12px}
+.state{display:flex;align-items:center;gap:8px;font-size:.875rem;font-weight:680}
+.state:has(#status:not(:empty)){margin-bottom:12px}
+.state:has(#status:empty) #dot{display:none}
 #dot{width:8px;height:8px;border-radius:50%;background:#8a9a92}
 #dot.active{background:#b52d4f}
 button{font:inherit;font-size:.9rem;font-weight:680;min-height:44px;border-radius:9px;cursor:pointer;padding:8px 14px}
@@ -25,7 +27,7 @@ button:focus-visible{outline:3px solid #006b85;outline-offset:3px}
 .outline{background:white;border:1px solid var(--line);color:var(--ink)}
 .outline:hover:not(:disabled){background:#e9f3ec}
 button:disabled{opacity:.5;cursor:default}
-#hint,.storage{font-size:.85rem;margin-top:10px}
+#hint:not(:empty),.storage{font-size:.85rem;margin-top:10px}
 .storage{margin-top:auto}
 .history{border-top:1px solid var(--line);padding-top:16px}
 h2{font-size:1rem;margin:0 0 12px}
@@ -138,8 +140,8 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 #outing-draft select,#outing-draft textarea{width:100%;font:inherit;color:inherit;border:1px solid var(--line);border-radius:6px;background:white;padding:6px;margin-bottom:10px}
 #outing-draft textarea{resize:vertical}
 
-.github-settings{padding:12px 16px;background:white;border:1px solid var(--line);border-radius:12px;font-size:.875rem;overflow-wrap:anywhere}
-.github-settings summary{cursor:pointer;font-weight:700}
+.github-settings,.configuration-settings{padding:12px 16px;background:white;border:1px solid var(--line);border-radius:12px;font-size:.875rem;overflow-wrap:anywhere}
+.github-settings summary,.configuration-settings summary{cursor:pointer;font-weight:700}
 .github-settings p,.github-settings form,.github-settings button{margin-top:8px}
 #github-token{display:block;width:100%;padding:6px 8px;border:1px solid var(--line);border-radius:6px;font:inherit}
 

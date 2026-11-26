@@ -2152,7 +2152,7 @@ function init() {
     }
   }
 
-  function stopRecording(message = "Ready to record") {
+  function stopRecording(message = "") {
     if (watch !== null) navigator.geolocation.clearWatch(watch);
     watch = null;
     const outing = current;

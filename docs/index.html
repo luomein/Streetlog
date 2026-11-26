@@ -6,19 +6,19 @@
 <title>Streetlog</title>
 <meta name="description" content="Record GPS walks and see which streets you've explored.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="style.css?v=layer-disclosure-1">
+<link rel="stylesheet" href="style.css?v=snap-configuration-1">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script defer src="vendor/exifr.js"></script>
 <script defer src="folder-library.js"></script>
 <script defer src="github-publisher.js?v=outing-album-1"></script>
-<script defer src="app.js?v=layer-disclosure-1"></script>
+<script defer src="app.js?v=snap-configuration-1"></script>
 </head>
 <body>
 <header><h1 class="brand"><span class="mark" aria-hidden="true">⌖</span><span id="site-name">Streetlog</span></h1><button id="locate" class="outline" type="button"><span aria-hidden="true">⌖</span> My location</button></header>
 <main>
 <aside>
 <section class="record">
-<div class="state"><span id="dot"></span><span id="status" role="status">Ready to record</span></div>
+<div class="state"><span id="dot"></span><span id="status" role="status"></span></div>
 <div class="record-actions">
 <button id="record" type="button">
 <svg class="record-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
@@ -35,9 +35,7 @@
 Pin
 </button>
 </div>
-<p id="hint">Allow location access and keep this page open while you explore.</p>
-<label class="snap-option"><input id="snap-streets" type="checkbox" checked autocomplete="off" aria-describedby="snap-recording-note"> Snap to streets</label>
-<p id="snap-recording-note">Matches recordings and pins to walking paths using <a href="https://routing.openstreetmap.de/about.html">FOSSGIS</a>. When enabled, route coordinates are sent to that service.</p>
+<p id="hint"></p>
 <fieldset id="outing-draft" hidden>
 <legend>Unsaved outing</legend>
 <label for="draft-category">Category</label>
@@ -90,6 +88,11 @@ Pin
 <button id="github-unlink" class="outline" type="button" hidden>Unlink account</button>
 </div>
 <p id="github-status" role="status"></p>
+</details>
+<details class="configuration-settings">
+<summary>Configuration</summary>
+<label class="snap-option"><input id="snap-streets" type="checkbox" checked autocomplete="off" aria-describedby="snap-recording-note"> Snap to streets</label>
+<p id="snap-recording-note">Matches recordings and pins to walking paths using <a href="https://routing.openstreetmap.de/about.html">FOSSGIS</a>. When enabled, route coordinates are sent to that service.</p>
 </details>
 <section class="history" aria-labelledby="history-label" hidden>
 <h2 id="history-label">Your exploration</h2>
