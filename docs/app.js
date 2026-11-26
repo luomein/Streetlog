@@ -418,6 +418,7 @@ function init() {
   const categoryConfig = new Map();
   const layerPreferenceKey = "streetlog.category-layers";
   const layerList = byId("category-layers");
+  const expandedCategories = new Set();
   const draftFields = byId("outing-draft");
   const draftCategory = byId("draft-category");
   const localCategoryKey = "streetlog.custom-categories";
@@ -574,21 +575,40 @@ function init() {
       ...entries.filter(entry => entry.key !== categoryKey(uncategorized)).map(entry => new Option(entry.name)));
     draftCategory.value = [...draftCategory.options].find(option =>
       categoryKey(option.value) === categoryKey(selectedCategory))?.value ?? uncategorized;
-    for (const entry of entries) {
+    for (const [index, entry] of entries.entries()) {
       const style = styleFor(entry);
       const row = document.createElement("div");
       row.className = "layer-row";
-      const name = document.createElement("label");
-      name.className = "layer-name";
+      const heading = document.createElement("div");
+      heading.className = "layer-name";
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "layer-disclosure";
+      const triangle = document.createElement("span");
+      triangle.className = "layer-triangle";
+      triangle.setAttribute("aria-hidden", "true");
       const visible = document.createElement("input");
       visible.type = "checkbox";
       visible.checked = style.visible;
+      visible.setAttribute("aria-label", `Show ${entry.name} on map`);
       const swatch = document.createElement("span");
       swatch.className = "layer-color";
       swatch.style.backgroundColor = style.color;
-      name.append(visible, swatch, document.createTextNode(entry.name));
+      swatch.setAttribute("aria-hidden", "true");
+      toggle.append(swatch, document.createTextNode(entry.name), triangle);
+      heading.append(visible, toggle);
       const controls = document.createElement("div");
       controls.className = "layer-style";
+      controls.id = `layer-style-${index}`;
+      toggle.setAttribute("aria-controls", controls.id);
+      controls.hidden = !expandedCategories.has(entry.key);
+      toggle.setAttribute("aria-expanded", String(!controls.hidden));
+      toggle.addEventListener("click", () => {
+        controls.hidden = !controls.hidden;
+        toggle.setAttribute("aria-expanded", String(!controls.hidden));
+        if (controls.hidden) expandedCategories.delete(entry.key);
+        else expandedCategories.add(entry.key);
+      });
       const update = (key, value) => {
         saveLayerPreferences(entry, { ...overrides.get(entry.key), [key]: value });
         swatch.style.backgroundColor = styleFor(entry).color;
@@ -623,7 +643,7 @@ function init() {
         renderLayerControls();
       });
       controls.append(reset);
-      row.append(name, controls);
+      row.append(heading, controls);
       layerList.append(row);
     }
   }

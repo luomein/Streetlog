@@ -113,9 +113,12 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 .layer-row:first-child{margin-top:7px}
 .layer-name,.layer-style label{display:flex;align-items:center;gap:6px}
 .layer-name{font-weight:650;overflow-wrap:anywhere}
-.layer-name input{flex:none}
+.layer-name input{flex:none;accent-color:var(--green)}
+.layer-disclosure{flex:1;min-width:0;min-height:32px;padding:2px 0;display:flex;align-items:center;gap:6px;background:none;border:0;color:inherit;text-align:left;overflow-wrap:anywhere}
+.layer-triangle{flex:none;margin-inline-start:auto;margin-inline-end:4px;width:0;height:0;border-block:4px solid transparent;border-inline-start:6px solid currentColor}
+.layer-disclosure[aria-expanded="true"] .layer-triangle{transform:rotate(90deg)}
 .layer-color{width:14px;height:6px;border-radius:3px;flex:none}
-.layer-style{display:grid;gap:5px;padding:5px 0 0 18px}
+.layer-style:not([hidden]){display:grid;gap:5px;padding:5px 0 0 18px}
 .layer-style label{justify-content:space-between}
 .layer-style input[type=range]{width:min(106px,44%);accent-color:var(--green)}
 .layer-style button{min-height:30px;justify-self:start;padding:2px 7px;font-size:.8rem}
