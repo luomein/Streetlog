@@ -375,7 +375,33 @@ function init() {
     return;
   }
 
-  const map = L.map("map", { zoomControl: false }).setView([25.035, 121.539], 14);
+  const mapViewKey = `streetlog.map-view.v1:${location.pathname.replace(/index\.html$/, "")}`;
+  const taiwan = [[21.85, 118.05], [26.45, 122.15]];
+  const map = L.map("map", { zoomControl: false });
+  let savedView;
+  try {
+    const view = JSON.parse(localStorage.getItem(mapViewKey));
+    if (Number.isFinite(view?.lat) && Math.abs(view.lat) <= 90 &&
+        Number.isFinite(view.lng) && Math.abs(view.lng) <= 180 &&
+        Number.isFinite(view.zoom) && view.zoom >= 0 && view.zoom <= 19) {
+      savedView = view;
+    }
+  } catch {
+    // Unavailable or invalid storage falls back to Taiwan.
+  }
+  if (savedView) {
+    map.setView([savedView.lat, savedView.lng], savedView.zoom);
+  } else {
+    map.fitBounds(taiwan, { padding: [16, 16] });
+  }
+  map.on("moveend", () => {
+    const { lat, lng } = map.wrapLatLng(map.getCenter());
+    try {
+      localStorage.setItem(mapViewKey, JSON.stringify({ lat, lng, zoom: map.getZoom() }));
+    } catch {
+      // The map can still be used when storage is unavailable.
+    }
+  });
   if (window.ResizeObserver) {
     const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
     observer.observe(map.getContainer());
@@ -1147,9 +1173,6 @@ function init() {
     status.textContent = "Browser storage unavailable";
   }
   refreshMap();
-  if (visibleMapBounds().isValid()) {
-    map.fitBounds(visibleMapBounds(), { maxZoom: 17, padding: [30, 30] });
-  }
 
   const saveLibrary = byId("save-library");
   const libraryStatus = byId("library-status");
@@ -1177,8 +1200,6 @@ function init() {
         photos.push({ ...photo, point: L.latLng(photo.lat, photo.lng), url: photo.image, serverSaved: true });
       }
       refreshMap();
-      const bounds = visibleMapBounds();
-      if (bounds.isValid() && !current && !draft) map.fitBounds(bounds, { maxZoom: 17, padding: [30, 30] });
       saveLibrary.hidden = false;
       saveLibrary.disabled = false;
       libraryStatus.textContent = library.outings.length || library.imports.length || library.photos.length
@@ -1340,7 +1361,7 @@ function init() {
     return stored ? stored[1] : `folder-photo:${name}`;
   }
 
-  async function loadFolder(files, handle = null) {
+  async function loadFolder(files, handle = null, fitView = true) {
     let skipped = 0;
     let done = 0;
     const total = files.routes.length + files.photos.length;
@@ -1389,12 +1410,12 @@ function init() {
     }
     refreshMap();
     const bounds = visibleMapBounds();
-    if (bounds.isValid() && !current && !draft) map.fitBounds(bounds, { maxZoom: 17, padding: [30, 30] });
+    if (fitView && bounds.isValid() && !current && !draft) map.fitBounds(bounds, { maxZoom: 17, padding: [30, 30] });
     let summary = skipped ? ` Skipped ${skipped} unreadable files.` : "";
     return summary;
   }
 
-  async function connectFolder(handle) {
+  async function connectFolder(handle, fitView = true) {
     folderBusy = true;
     folderProgress.removeAttribute("value");
     folderProgress.hidden = false;
@@ -1404,7 +1425,7 @@ function init() {
         await handle.getDirectoryHandle("GeoJSON", { create: true });
         await handle.getDirectoryHandle("Photo", { create: true });
       }
-      const summary = await loadFolder(await folderLibrary.list(handle), handle);
+      const summary = await loadFolder(await folderLibrary.list(handle), handle, fitView);
       activeFolder = handle;
       if (!handle.server) rememberedFolder = handle;
       reconnectFolder.hidden = true;
@@ -1496,7 +1517,7 @@ function init() {
       const folder = local ? await folderLibrary.serverPreference() : null;
       if (folder) serverFolderForm.hidden = false;
       if (folder?.name) {
-        await connectFolder({ server: true, name: folder.name, key: folder.key });
+        await connectFolder({ server: true, name: folder.name, key: folder.key }, false);
         return;
       }
     } catch {
@@ -1511,7 +1532,7 @@ function init() {
       rememberedFolder = await folderLibrary.remembered();
       if (!rememberedFolder) return;
       if (await rememberedFolder.queryPermission(folderPermission) === "granted") {
-        await connectFolder(rememberedFolder);
+        await connectFolder(rememberedFolder, false);
       } else {
         reconnectFolder.hidden = false;
         folderStatus.textContent = `Reconnect ${rememberedFolder.name} to load its routes and photos.`;
@@ -1795,26 +1816,6 @@ function init() {
       }
       if (changed) refreshMap();
       loadVisibleFiles();
-    }
-
-    // When the untouched default view is empty, start near the closest published file.
-    const viewport = map.getBounds();
-    const center = map.getCenter();
-    if (!current && !draft && map.getZoom() === 14 && center.equals([25.035, 121.539]) &&
-        !routes.some(route => !route.bounds || overlapsViewport(viewport, route.bounds))) {
-      let nearest = null;
-      let nearestDistance = Infinity;
-      for (const { bounds } of routes) {
-        if (!bounds) continue;
-        const [west, south, east, north] = bounds;
-        const extent = L.latLngBounds([[south, west], [north, east]]);
-        const distance = map.distance(center, extent.getCenter());
-        if (distance < nearestDistance) {
-          nearest = extent;
-          nearestDistance = distance;
-        }
-      }
-      if (nearest) map.fitBounds(nearest, { maxZoom: 17, padding: [30, 30], animate: false });
     }
 
     map.on("moveend", updateViewport);
