@@ -369,6 +369,10 @@ function init() {
   }
 
   const map = L.map("map", { zoomControl: false }).setView([25.035, 121.539], 14);
+  if (window.ResizeObserver) {
+    const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+    observer.observe(map.getContainer());
+  }
   L.control.zoom({ position: "topright" }).addTo(map);
   L.control.scale({ position: "bottomleft", imperial: false }).addTo(map);
   L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
