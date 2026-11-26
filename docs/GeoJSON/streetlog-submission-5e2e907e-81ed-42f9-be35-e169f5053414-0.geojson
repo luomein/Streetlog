@@ -1,0 +1,1 @@
+{"type":"FeatureCollection","features":[{"type":"Feature","properties":{"outing":"d1e16d57-99d6-47a0-a7c1-e9d73145eed7","outingKind":"pin","category":"Test","description":"","photoFileNames":[],"streetSnapped":false,"timestamps":["1995-11-26T15:07:09.791Z"],"accuracyMeters":[68.66666666666667]},"geometry":{"type":"Point","coordinates":[120.50105285550471,22.42248154301735]}}]}
