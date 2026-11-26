@@ -513,14 +513,15 @@ function init() {
   }
 
   function paintLayer(layer, style) {
+    const opacity = layer.options?.recordingOpacity ?? style.opacity;
     if (layer.eachLayer) {
       layer.eachLayer(child => paintLayer(child, style));
     } else if (layer.setRadius) {
       layer.setRadius(Math.max(style.weight / 2, layer.options?.minRadius ?? 0));
-      layer.setStyle({ stroke: false, fillColor: style.color, fillOpacity: style.opacity });
+      layer.setStyle({ stroke: false, fillColor: style.color, fillOpacity: opacity });
     } else {
-      layer.setStyle?.({ color: style.color, weight: style.weight, opacity: style.opacity,
-        fillColor: style.color, fillOpacity: style.opacity * 0.2 });
+      layer.setStyle?.({ color: style.color, weight: style.weight, opacity,
+        fillColor: style.color, fillOpacity: opacity * 0.2 });
     }
   }
 
@@ -993,6 +994,68 @@ function init() {
     return paths;
   }
 
+  function recordingOpacity(time, start, end) {
+    return end > start ? 0.1 + 0.9 * Math.max(0, Math.min(1, (time - start) / (end - start))) : 1;
+  }
+
+  function timedMatchPaths(paths, start, end) {
+    let distance = 0;
+    const timed = paths.map(path => {
+      let previous;
+      return path.map(([lng, lat]) => {
+        const point = [lat, lng];
+        if (previous) distance += map.distance(previous, point);
+        previous = point;
+        return { point, distance };
+      });
+    });
+    return timed.map(path => path.map(item => ({
+      point: item.point, time: distance ? start + (end - start) * item.distance / distance : end
+    })));
+  }
+
+  function paintRecording(outing, start, end) {
+    let meters = 0;
+    const opts = { interactive: false };
+    const add = layer => routeLayer.addLayer(registerLayer(layer, outing.category));
+    for (const [index, segment] of outing.segments.entries()) {
+      const preview = liveMatch?.segments.get(index);
+      const raw = segment.slice(preview?.offset ?? 0).map(point => ({ point: pointCoords(point), time: point.time }));
+      const paths = [...(preview?.timedPaths ?? []), raw];
+      for (const path of paths) {
+        if (path.length === 1 && segment.length === 1) {
+          add(L.circleMarker(path[0].point, { ...opts, recordingOpacity: recordingOpacity(path[0].time, start, end) }));
+          continue;
+        }
+        let band;
+        let group = [];
+        const draw = () => {
+          if (group.length > 1) add(L.polyline(group, { ...opts, lineCap: "butt",
+            recordingOpacity: 0.1 + 0.9 * band / 32 }));
+        };
+        for (let i = 1; i < path.length; i++) {
+          const previous = path[i - 1];
+          const point = path[i];
+          meters += map.distance(previous.point, point.point);
+          const nextBand = Math.round((recordingOpacity((previous.time + point.time) / 2, start, end) - 0.1) / 0.9 * 32);
+          if (nextBand !== band) {
+            draw();
+            band = nextBand;
+            group = [previous.point];
+          }
+          group.push(point.point);
+        }
+        draw();
+        for (const endpoint of [path[0], path.at(-1)]) {
+          if (endpoint && (endpoint.time === start || endpoint.time === end)) {
+            add(L.circleMarker(endpoint.point, { ...opts, recordingOpacity: recordingOpacity(endpoint.time, start, end) }));
+          }
+        }
+      }
+    }
+    return meters;
+  }
+
   function showRoutingAttribution() {
     if (routingAttributed) return;
     map.attributionControl.addAttribution(routingAttribution);
@@ -1171,6 +1234,10 @@ function init() {
     let meters = 0;
     for (const outing of [...outings, ...(current || draft ? [current || draft] : [])]) {
       if (outing.snapped || (outing.matchedSegments && outing.snapped !== false)) showRoutingAttribution();
+      if (outing === current && outing.segments.length) {
+        meters += paintRecording(outing, outing.segments[0][0].time, outing.segments.at(-1).at(-1).time);
+        continue;
+      }
       for (const [segmentIndex, segment] of outing.segments.entries()) {
         if (segment.length === 1) {
           const prominent = outing.kind === "pin" && categoryKey(outing.category) === categoryKey(uncategorized);
@@ -2100,7 +2167,7 @@ function init() {
 
   async function updateLiveMatch(preview) {
     for (const [index, segment] of preview.outing.segments.entries()) {
-      const state = preview.segments.get(index) ?? { offset: 0, paths: [], statuses: [] };
+      const state = preview.segments.get(index) ?? { offset: 0, paths: [], statuses: [], timedPaths: [] };
       while (segment.length - state.offset >= matchBatchSize && current === preview.outing) {
         const coordinates = segment.slice(state.offset).map(({ lat, lng }) => [lng, lat]);
         const anchors = matchAnchorIndices(coordinates, false, matchBatchSize);
@@ -2111,6 +2178,8 @@ function init() {
         });
         if (liveMatch !== preview) return;
         state.paths.push(...result.data.coordinates);
+        state.timedPaths.push(...timedMatchPaths(result.data.coordinates,
+          segment[state.offset].time, segment[state.offset + end].time));
         state.statuses.push(...result.data.streetSnappedParts);
         state.offset += end;
         preview.segments.set(index, state);
@@ -2192,7 +2261,6 @@ function init() {
     const segment = current.segments.at(-1);
     const previous = segment?.at(-1);
     const first = !previous;
-    showLocation(point, first);
     const elapsed = previous ? (point.time - previous.time) / 1000 : 0;
     if (!first && elapsed <= 0) return;
     const moved = first ? 0 : distance(previous, point);
@@ -2204,6 +2272,8 @@ function init() {
 
     breakTrail = false;
     refreshMap();
+    showLocation(point, first);
+    if (!first) map.panTo(pointCoords(point), { animate: false });
     if (liveMatch && !liveMatch.pending) {
       const preview = liveMatch;
       preview.pending = updateLiveMatch(preview).finally(() => { preview.pending = null; });
@@ -2218,6 +2288,7 @@ function init() {
     if (!gpsAvailable || draft || locatingPin) return;
     const outing = { id: crypto.randomUUID(), kind: "recording", segments: [] };
     current = outing;
+    revealCategory(getCategory(outing.category));
     liveMatch = snapStreets.checked ? { outing, segments: new Map(), pending: null } : null;
     breakTrail = false;
     syncCaptureControls();
@@ -2384,11 +2455,15 @@ function init() {
     if (!draft || publishing) return;
     const entry = getCategory(categoryKey(value) === categoryKey(uncategorized) ? uncategorized : value);
     draft.category = draftCategory.value = entry.name;
+    revealCategory(entry);
+    refreshMap();
+  }
+
+  function revealCategory(entry) {
     if (!styleFor(entry).visible) {
       saveLayerPreferences(entry, { ...overrides.get(entry.key), visible: true });
       renderLayerControls();
     }
-    refreshMap();
   }
 
   draftCategory.addEventListener("change", () => selectDraftCategory(draftCategory.value));
