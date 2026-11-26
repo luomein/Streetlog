@@ -2063,7 +2063,6 @@ function init() {
 
   function showDraft(outing, message) {
     draft = outing;
-    draftCategory.value = categoryName(outing.category);
     draftDescription.value = outing.description ?? "";
     categoryDetails.open = false;
     categoryInput.value = "";
@@ -2073,7 +2072,7 @@ function init() {
     status.textContent = message;
     hint.textContent = defaultHint;
     syncCaptureControls();
-    refreshMap();
+    selectDraftCategory(outing.category);
   }
 
   function closeDraft(message) {
