@@ -133,8 +133,10 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 #drop-pin{background:#ffb000;color:#3c2800;border:1px solid #ffb000}
 #drop-pin:hover:not(:disabled){background:#f0a400}
 .record-actions svg{flex:none}
-#outing-draft{position:relative;min-width:0;margin:14px 0 0;padding:10px;border:1px solid var(--line);border-radius:9px}
-#outing-draft legend{font-weight:680;padding:0 4px}
+#outing-draft{min-width:0;margin:14px 0 0;padding:10px;border:1px solid var(--line);border-radius:9px}
+#outing-draft legend{width:100%;font-weight:680;padding:0 0 0 4px}
+.draft-heading{position:relative;display:flex;align-items:center;gap:7px;padding-inline-end:30px}
+.draft-heading::after{content:"";flex:1;border-top:1px solid var(--line)}
 #outing-draft label{display:block;font-size:.875rem;margin-bottom:4px}
 #outing-draft select,#outing-draft textarea{width:100%;font:inherit;color:inherit;border:1px solid var(--line);border-radius:6px;background:white;padding:6px;margin-bottom:10px}
 #outing-draft textarea{resize:vertical}
@@ -153,7 +155,7 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 
 .draft-album{margin-bottom:12px}
 .draft-album h2{margin-bottom:6px}
-#draft-photo-picker{width:100%;display:grid;place-items:center;border-style:dashed;color:#0875b9}
+#draft-photo-picker{width:100%;display:grid;place-items:center;border-style:dashed;color:var(--line)}
 #draft-photo-picker.is-dragging{background:#e9f3ec;border-color:var(--green)}
 #draft-photo-status:not(:empty){margin-top:6px;font-size:.8rem}
 .draft-photo-list{list-style:none;margin:0;padding:0}
@@ -167,5 +169,5 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 .published-outing-description{white-space:pre-wrap;max-height:25vh;overflow:auto}
 .leaflet-tooltip.published-outing-tooltip{pointer-events:auto}
 
-#discard-draft{position:absolute;inset-block-start:-16px;inset-inline-end:7px;width:44px;height:44px;padding:0;display:grid;place-items:center;border:3px solid white;border-radius:50%;background:#252525;color:white}
-#discard-draft:hover:not(:disabled){background:#444}
+#discard-draft{position:absolute;inset-block-start:50%;inset-inline-end:-10px;transform:translateY(-50%);width:44px;height:44px;padding:0;display:grid;place-items:center;border:0;background:transparent;color:var(--ink)}
+#discard-draft:hover:not(:disabled) svg{filter:brightness(.92)}
