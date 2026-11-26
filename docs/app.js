@@ -245,6 +245,12 @@ function categoryKey(value) {
   return categoryName(value).toLowerCase();
 }
 
+function displayCategory(value) {
+  return categoryKey(value) === categoryKey(uncategorized)
+    ? window.streetlogLanguage?.t("shared.uncategorized", uncategorized) ?? uncategorized
+    : categoryName(value);
+}
+
 function categoryStyle(config, fallback) {
   const number = (value, otherwise, minimum, maximum) => {
     const parsed = Number.parseFloat(value);
@@ -570,7 +576,7 @@ function init() {
     layerList.replaceChildren();
     const entries = [...categoryLayers.values()].sort((a, b) => a.name.localeCompare(b.name));
     const selectedCategory = draftCategory.value || uncategorized;
-    draftCategory.replaceChildren(new Option(uncategorized),
+    draftCategory.replaceChildren(new Option(displayCategory(uncategorized), uncategorized),
       ...entries.filter(entry => entry.key !== categoryKey(uncategorized)).map(entry => new Option(entry.name)));
     draftCategory.value = [...draftCategory.options].find(option =>
       categoryKey(option.value) === categoryKey(selectedCategory))?.value ?? uncategorized;
@@ -589,12 +595,12 @@ function init() {
       const visible = document.createElement("input");
       visible.type = "checkbox";
       visible.checked = style.visible;
-      visible.setAttribute("aria-label", `Show ${entry.name} on map`);
+      visible.setAttribute("aria-label", `Show ${displayCategory(entry.name)} on map`);
       const swatch = document.createElement("span");
       swatch.className = "layer-color";
       swatch.style.backgroundColor = style.color;
       swatch.setAttribute("aria-hidden", "true");
-      toggle.append(swatch, document.createTextNode(entry.name), triangle);
+      toggle.append(swatch, document.createTextNode(displayCategory(entry.name)), triangle);
       heading.append(visible, toggle);
       const controls = document.createElement("div");
       controls.className = "layer-style";
@@ -819,7 +825,7 @@ function init() {
       const container = document.createElement("div");
       container.className = "published-outing-details";
       const category = document.createElement("p");
-      category.textContent = `Category: ${categoryName(properties.category)}`;
+      category.textContent = `Category: ${displayCategory(properties.category)}`;
       const description = document.createElement("p");
       description.className = "published-outing-description";
       description.textContent = typeof properties.description === "string" && properties.description.trim()
@@ -865,6 +871,7 @@ function init() {
     }
 
     let preview;
+    let previewLanguage;
     const tooltip = L.tooltip({
       interactive: true, direction: "top", opacity: 1, className: "published-outing-tooltip"
     });
@@ -884,7 +891,9 @@ function init() {
     layer.on("mouseover", event => {
       keepOpen();
       if (!layer.isPopupOpen() && !map.hasLayer(tooltip)) {
-        if (!preview) {
+        const language = window.streetlogLanguage?.current;
+        if (!preview || previewLanguage !== language) {
+          previewLanguage = language;
           preview = details(true);
           preview.addEventListener("mouseenter", keepOpen);
           preview.addEventListener("mouseleave", scheduleClose);
@@ -2487,6 +2496,11 @@ function init() {
   exportButton.addEventListener("click", () => {
     const selected = checkedRecorded.size ? outings.filter(outing => checkedRecorded.has(outing.id)) : outings;
     downloadOutings(selected, checkedRecorded.size ? "streetlog-selected.geojson" : "streetlog.geojson");
+  });
+
+  document.addEventListener("streetlog-language-change", () => {
+    renderLayerControls();
+    map.closePopup();
   });
 
   for (const name of localCategories) getCategory(name);

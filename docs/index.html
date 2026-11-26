@@ -6,12 +6,13 @@
 <title>Streetlog</title>
 <meta name="description" content="Record GPS walks and see which streets you've explored.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="style.css?v=draft-icon-alignment-1">
+<link rel="stylesheet" href="style.css?v=localization-1">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script defer src="vendor/exifr.js"></script>
 <script defer src="folder-library.js"></script>
 <script defer src="github-publisher.js?v=outing-album-1"></script>
-<script defer src="app.js?v=draft-visibility-1"></script>
+<script defer src="localization.js?v=1"></script>
+<script defer src="app.js?v=localization-1"></script>
 </head>
 <body>
 <header><h1 class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" focusable="false"><circle cx="12" cy="12" r="7"/><path d="M12 1v22M1 12h22"/></svg></span><span id="site-name">Streetlog</span></h1><button id="locate" class="outline" type="button"><span aria-hidden="true">⌖</span> My location</button></header>
@@ -38,7 +39,7 @@ Pin
 <p id="hint"></p>
 <fieldset id="outing-draft" hidden>
 <legend><span class="draft-heading">
-<span>Unsaved outing</span>
+<span data-translation="web.unsaved_outing">Unsaved outing</span>
 <button id="discard-draft" type="button" aria-label="Discard outing" title="Discard outing">
 <svg viewBox="0 0 24 24" width="23" height="23" aria-hidden="true" focusable="false">
 <circle cx="12" cy="12" r="12" fill="var(--line)"/>
@@ -47,7 +48,7 @@ Pin
 </button>
 </span></legend>
 <label for="draft-category">Category</label>
-<select id="draft-category"><option>Uncategorized</option></select>
+<select id="draft-category"><option value="Uncategorized" data-translation="shared.uncategorized">Uncategorized</option></select>
 <details id="draft-new-category">
 <summary>Add category</summary>
 <form id="draft-category-form">
@@ -75,7 +76,7 @@ Pin
 <p id="draft-photo-status" role="status"></p>
 <ul id="draft-photo-list" class="draft-photo-list"></ul>
 </section>
-<button id="push-draft" class="primary" type="button" disabled>Push to GitHub</button>
+<button id="push-draft" data-translation="web.push_to_github" class="primary" type="button" disabled>Push to GitHub</button>
 </fieldset>
 </section>
 <details id="github-settings" class="github-settings">
@@ -102,6 +103,12 @@ Pin
 </details>
 <details class="configuration-settings">
 <summary>Configuration</summary>
+<label class="language-option" for="site-language">Language
+<select id="site-language">
+<option value="en" lang="en">English</option>
+<option value="zh-Hant" lang="zh-Hant">繁體中文</option>
+</select>
+</label>
 <label class="snap-option"><input id="snap-streets" type="checkbox" checked autocomplete="off" aria-describedby="snap-recording-note"> Snap to streets</label>
 <p id="snap-recording-note">Matches recordings and pins to walking paths using <a href="https://routing.openstreetmap.de/about.html">FOSSGIS</a>. When enabled, route coordinates are sent to that service.</p>
 </details>
@@ -172,7 +179,7 @@ Pin
 <svg class="layer-icon" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
 <path d="M12 3 22 10 12 17 2 10Z M2 15l10 7 10-7"/>
 </svg>
-<span>Layers</span>
+<span data-translation="web.layers">Categories</span>
 </summary>
 <div id="category-layers" class="layer-list"></div>
 <p id="layer-status" role="status"></p>

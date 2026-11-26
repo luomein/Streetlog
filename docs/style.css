@@ -171,3 +171,6 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 
 #discard-draft{position:absolute;inset-block-start:50%;inset-inline-end:-10px;transform:translateY(-50%);width:44px;height:44px;padding:0;display:grid;place-items:center;border:0;background:transparent;color:var(--ink)}
 #discard-draft:hover:not(:disabled) svg{filter:brightness(.92)}
+
+.language-option{display:flex;align-items:center;gap:8px;margin-top:12px}
+.language-option select{min-width:0;font:inherit;color:inherit;border:1px solid var(--line);border-radius:6px;background:white;padding:4px 6px}
