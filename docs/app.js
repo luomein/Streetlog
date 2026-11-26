@@ -418,6 +418,16 @@ function init() {
   let preparingPhotos = false;
   const pushDraft = byId("push-draft");
   const discardDraft = byId("discard-draft");
+  const githubMethod = byId("github-method");
+  const githubTokenSettings = byId("github-token-settings");
+  let guestEndpoint;
+  const canPublishGitHub = () => githubMethod.value === "guest"
+    ? Boolean(githubRepo && guestEndpoint)
+    : Boolean(githubTarget);
+  githubMethod.addEventListener("change", () => {
+    showUploadMethodStatus();
+    syncCaptureControls();
+  });
   const githubForm = byId("github-form");
   const githubToken = byId("github-token");
   const rememberGitHub = byId("github-remember");
@@ -1669,7 +1679,7 @@ function init() {
         byId("site-name").textContent = name;
         document.title = name;
       }
-      configureGitHub(config.git_url, config.GeoJSON_folder);
+      configureGitHub(config.git_url, config.GeoJSON_folder, config.guest_github_api_url);
       return config;
     } catch {
       byId("github-repository").textContent = "Could not load site.json. Reload the page to retry.";
@@ -1829,13 +1839,30 @@ function init() {
     if (center) map.setView(pointCoords(point), Math.max(map.getZoom(), 17));
   }
 
-  function configureGitHub(url, folder) {
+  function guestUploadURL(value) {
+    if (typeof value !== "string") return null;
+    try {
+      const url = new URL(value.trim());
+      return url.protocol === "https:" && !url.username && !url.password && !url.hash ? url : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function showUploadMethodStatus() {
+    githubStatus.textContent = githubMethod.value === "guest" && !guestEndpoint && githubRepo
+      ? "Guest uploads need a valid HTTPS guest_github_api_url in site.json."
+      : "";
+  }
+
+  function configureGitHub(url, folder, guestURL) {
     if (!window.streetlogGitHub) {
       byId("github-repository").textContent = "GitHub controls could not load. Reload the page to retry.";
       return;
     }
     githubRepo = window.streetlogGitHub.repository(url);
     githubFolder = folder;
+    guestEndpoint = guestUploadURL(guestURL);
     if (!githubRepo) {
       byId("github-repository").textContent = "Set a GitHub repository URL in site.json.";
       return;
@@ -1845,6 +1872,7 @@ function init() {
     link.href = "https://github.com/" + repo;
     link.textContent = repo;
     byId("github-repository").replaceChildren(link);
+    showUploadMethodStatus();
     syncCaptureControls();
     let savedToken;
     try {
@@ -1853,7 +1881,11 @@ function init() {
       // Linking still works for the current visit.
     }
     rememberGitHub.checked = Boolean(savedToken);
-    if (savedToken) linkGitHub(savedToken, true);
+    if (savedToken) {
+      githubMethod.value = "token";
+      syncCaptureControls();
+      linkGitHub(savedToken, true);
+    }
   }
 
   function githubTokenKey() {
@@ -1933,26 +1965,50 @@ function init() {
     syncCaptureControls();
   });
 
+  async function submitAsGuest(filename, data, photos) {
+    const form = new FormData();
+    form.append("geojson", new Blob([data], { type: "application/geo+json" }), filename);
+    for (const photo of photos) form.append("photos", photo.blob, photo.name);
+    const response = await fetch(guestEndpoint, {
+      method: "POST", body: form, credentials: "omit", redirect: "error",
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || `The submission API returned HTTP ${response.status}.`);
+    const pullRequest = guestUploadURL(result.url);
+    if (pullRequest?.hostname !== "github.com" || !/^\/[^/]+\/[^/]+\/pull\/\d+\/?$/.test(pullRequest.pathname)) {
+      throw new Error("The guest API did not return a GitHub pull request URL.");
+    }
+    return { url: pullRequest.href, pullRequest: true };
+  }
+
   pushDraft.addEventListener("click", async () => {
-    if (!draft || !githubTarget || matchingRecording || preparingPhotos || publishing) return;
+    if (!draft || !canPublishGitHub() || matchingRecording || preparingPhotos || publishing) return;
     const target = githubTarget;
+    const guest = githubMethod.value === "guest";
     const outing = draft;
-    const audience = target.isPrivate ? "" : " This outing can become publicly visible.";
+    const audience = guest || !target.isPrivate ? " This outing can become publicly visible." : "";
+    const destination = guest ? githubRepo.join("/") + " via " + guestEndpoint.host : target.repo.join("/") + "/" + target.path;
     const photos = outing.album ?? [];
     const attachments = photos.length ? ` and ${photos.length} attached photo${photos.length === 1 ? "" : "s"}` : "";
-    if (!window.confirm(`Upload this outing${attachments} to ${target.repo.join("/")}/${target.path}?${audience}`)) return;
+    if (!window.confirm(`Upload this outing${attachments} to ${destination}?${audience}`)) return;
     publishing = true;
     syncCaptureControls();
     byId("github-settings").open = true;
     githubStatus.textContent = "Uploading outing…";
     try {
-      const latest = await githubClient.inspect(githubRepo, githubFolder, target.account);
-      if (latest.branch !== target.branch || latest.path !== target.path || latest.isPrivate !== target.isPrivate) {
-        githubTarget = latest;
-        throw new Error("The publishing destination changed. Review it before retrying.");
+      const filename = `streetlog-${outing.kind}-${outing.id}.geojson`;
+      const data = JSON.stringify({ type: "FeatureCollection", features: outingFeatures(outing) });
+      let result;
+      if (guest) {
+        result = await submitAsGuest(filename, data, photos);
+      } else {
+        const latest = await githubClient.inspect(githubRepo, githubFolder, target.account);
+        if (latest.branch !== target.branch || latest.path !== target.path || latest.isPrivate !== target.isPrivate) {
+          githubTarget = latest;
+          throw new Error("The publishing destination changed. Review it before retrying.");
+        }
+        result = await githubClient.upload(latest, filename, data, photos);
       }
-      const result = await githubClient.upload(latest, `streetlog-${outing.kind}-${outing.id}.geojson`,
-        JSON.stringify({ type: "FeatureCollection", features: outingFeatures(outing) }), photos);
       const link = document.createElement("a");
       link.href = result.url;
       link.textContent = result.pullRequest ? "View pull request" : "View GitHub commit";
@@ -1978,7 +2034,9 @@ function init() {
     for (const button of draftPhotoList.querySelectorAll("button")) button.disabled = publishing;
     discardDraft.disabled = publishing;
     draftCategory.disabled = draftDescription.disabled = categoryInput.disabled = byId("draft-category-add").disabled = publishing;
-    pushDraft.disabled = !draft || !githubTarget || matchingRecording || preparingPhotos || publishing;
+    githubMethod.disabled = publishing || linking;
+    githubTokenSettings.hidden = githubMethod.value !== "token";
+    pushDraft.disabled = !draft || !canPublishGitHub() || matchingRecording || preparingPhotos || publishing;
     githubUnlink.disabled = publishing || linking;
     githubToken.disabled = githubLink.disabled = rememberGitHub.disabled = !githubRepo || publishing || linking;
     githubUnlink.hidden = !githubTarget && !rememberGitHub.checked;

@@ -11,7 +11,7 @@
 <script defer src="vendor/exifr.js"></script>
 <script defer src="folder-library.js"></script>
 <script defer src="github-publisher.js?v=outing-album-1"></script>
-<script defer src="app.js?v=viewport-routes-1"></script>
+<script defer src="app.js?v=guest-uploads-2"></script>
 </head>
 <body>
 <header><h1 class="brand"><span class="mark" aria-hidden="true">⌖</span><span id="site-name">Streetlog</span></h1><button id="locate" class="outline" type="button"><span aria-hidden="true">⌖</span> My location</button></header>
@@ -72,7 +72,13 @@ Pin
 <details id="github-settings" class="github-settings">
 <summary>GitHub</summary>
 <p id="github-repository">Loading repository settings…</p>
-<p id="github-account" role="status">Guest · no account linked</p>
+<label for="github-method">Upload as</label>
+<select id="github-method">
+  <option value="guest">Guest</option>
+  <option value="token">Personal access token</option>
+</select>
+<div id="github-token-settings" hidden>
+<p id="github-account" role="status">No account linked</p>
 <form id="github-form">
 <label for="github-token">Personal access token</label>
 <input id="github-token" type="password" disabled required autocomplete="off" spellcheck="false">
@@ -82,6 +88,7 @@ Pin
 <p><label><input id="github-remember" type="checkbox" autocomplete="off" disabled> Remember token in this browser</label></p>
 <p>Use this only on a device you trust.</p>
 <button id="github-unlink" class="outline" type="button" hidden>Unlink account</button>
+</div>
 <p id="github-status" role="status"></p>
 </details>
 <section class="history" aria-labelledby="history-label" hidden>
