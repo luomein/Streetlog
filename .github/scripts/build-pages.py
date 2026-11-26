@@ -25,7 +25,39 @@ def category_names(data):
                 yield name.strip()
 
 
-def add_missing_categories(config, folder, files):
+def geometry_bounds(data):
+    """Return [west, south, east, north] from actual positions."""
+    bounds = None
+    stack = [data]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            kind = node.get("type")
+            if kind == "Feature":
+                stack.append(node.get("geometry"))
+            elif kind in ("FeatureCollection", "GeometryCollection"):
+                members = node.get("features" if kind == "FeatureCollection" else "geometries")
+                if isinstance(members, list):
+                    stack.extend(members)
+            else:
+                stack.append(node.get("coordinates"))
+        elif isinstance(node, list):
+            if (len(node) >= 2 and all(type(value) in (int, float) for value in node[:2])):
+                longitude, latitude = node[:2]
+                if -180 <= longitude <= 180 and -90 <= latitude <= 90:
+                    if bounds is None:
+                        bounds = [longitude, latitude, longitude, latitude]
+                    else:
+                        bounds[0] = min(bounds[0], longitude)
+                        bounds[1] = min(bounds[1], latitude)
+                        bounds[2] = max(bounds[2], longitude)
+                        bounds[3] = max(bounds[3], latitude)
+            else:
+                stack.extend(node)
+    return bounds
+
+
+def index_routes(config, folder, files):
     categories = config.setdefault("categories", [])
     if not isinstance(categories, list):
         raise ValueError("site.json categories must be an array.")
@@ -36,12 +68,15 @@ def add_missing_categories(config, folder, files):
                     and entry["name"].strip().casefold() == "uncategorized"
                     and isinstance(entry.get("style"), dict)), DEFAULT_CATEGORY_STYLE)
     added = 0
+    bounds = {}
     for name in files:
+        bounds[name] = None
         try:
             data = json.loads((folder / name).read_text(encoding="utf-8-sig"))
         except (OSError, ValueError):
             print(f"Skipping category scan for unreadable GeoJSON: {name!r}")
             continue
+        bounds[name] = geometry_bounds(data)
         for category in category_names(data):
             key = category.casefold()
             if key in known:
@@ -50,6 +85,7 @@ def add_missing_categories(config, folder, files):
             categories.append({"name": category, "style": dict(default)})
             added += 1
     print(f"Added {added} categories to the published site.json.")
+    return bounds
 
 
 def build_pages(repository: Path, output: Path) -> None:
@@ -74,10 +110,11 @@ def build_pages(repository: Path, output: Path) -> None:
     files = [name for name in names if Path(name).suffix.lower() == ".geojson"]
     image_types = {".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif"}
     photos = [name for name in names if Path(name).suffix.lower() in image_types]
-    add_missing_categories(config, folder, files)
+    bounds = index_routes(config, folder, files)
     (output / "site.json").write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     manifest = json.dumps({
         "files": files,
+        "bounds": bounds,
         "photos": photos,
         "source_branch": os.environ.get("GITHUB_REF_NAME", "main"),
         "source_folder": (published_source.relative_to(repository) / relative_folder).as_posix(),

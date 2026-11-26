@@ -359,6 +359,13 @@ function nearestRouteSection(map, point, paths) {
   return { path, center, section: [...walk(-1).reverse(), center, ...walk(1)] };
 }
 
+function overlapsViewport(view, [west, south, east, north]) {
+  if (north < view.getSouth() || south > view.getNorth()) return false;
+  // Leaflet allows continuous panning across repeated copies of the world.
+  const shift = 360 * Math.ceil((view.getWest() - east) / 360);
+  return west + shift <= view.getEast();
+}
+
 function init() {
   if (!window.L) {
     byId("github-repository").textContent = "Streetlog could not load its map. Reload the page to retry.";
@@ -802,10 +809,10 @@ function init() {
       return container;
     }
 
-    const preview = details(true);
+    let preview;
     const tooltip = L.tooltip({
       interactive: true, direction: "top", opacity: 1, className: "published-outing-tooltip"
-    }).setContent(preview);
+    });
     let closeTimer;
     const keepOpen = () => clearTimeout(closeTimer);
     const close = () => {
@@ -815,20 +822,24 @@ function init() {
     const scheduleClose = () => {
       keepOpen();
       closeTimer = setTimeout(() => {
-        if (!preview.contains(document.activeElement)) close();
+        if (!preview?.contains(document.activeElement)) close();
       }, 250);
     };
 
     layer.on("mouseover", event => {
       keepOpen();
       if (!layer.isPopupOpen() && !map.hasLayer(tooltip)) {
+        if (!preview) {
+          preview = details(true);
+          preview.addEventListener("mouseenter", keepOpen);
+          preview.addEventListener("mouseleave", scheduleClose);
+          preview.addEventListener("focusout", scheduleClose);
+          tooltip.setContent(preview);
+        }
         tooltip.setLatLng(event.latlng).addTo(map);
       }
     });
     layer.on("mouseout", scheduleClose);
-    preview.addEventListener("mouseenter", keepOpen);
-    preview.addEventListener("mouseleave", scheduleClose);
-    preview.addEventListener("focusout", scheduleClose);
     layer.bindPopup(() => details(false), { maxWidth: 360 });
     layer.on("popupopen remove", close);
   }
@@ -852,6 +863,16 @@ function init() {
       }
     });
     return visibleBounds;
+  }
+
+  function removeImportedRoute(id) {
+    const index = importedRoutes.findIndex(route => route.id === id);
+    if (index >= 0) importedRoutes.splice(index, 1);
+    importLayers.get(id)?.eachLayer(unregisterLayer);
+    importLayers.delete(id);
+    for (const [key, group] of importedGroups) {
+      if (group.routeID === id) importedGroups.delete(key);
+    }
   }
 
   importButton.addEventListener("click", () => fileInput.click());
@@ -1225,14 +1246,7 @@ function init() {
       if (collection === "outings") {
         outings = outings.filter(outing => outing.id !== id);
       } else if (collection === "imports") {
-        const index = importedRoutes.findIndex(route => route.id === id);
-        if (index >= 0) importedRoutes.splice(index, 1);
-        const layer = importLayers.get(id);
-        if (layer) layer.eachLayer(unregisterLayer);
-        importLayers.delete(id);
-        for (const [key, group] of importedGroups) {
-          if (group.routeID === id) importedGroups.delete(key);
-        }
+        removeImportedRoute(id);
       } else {
         const index = photos.findIndex(photo => photo.id === id);
         if (index >= 0) {
@@ -1668,6 +1682,7 @@ function init() {
     const base = new URL(".", document.baseURI);
     let folder;
     let files;
+    let indexedBounds;
     let availablePhotos;
     let repositoryFolder;
     try {
@@ -1682,7 +1697,7 @@ function init() {
       const response = await fetch(new URL("index.json", folder), { cache: "no-cache" });
       if (!response.ok) throw new Error("Could not read the GeoJSON folder’s index.json.");
       const manifest = await response.json();
-      ({ files } = manifest);
+      ({ files, bounds: indexedBounds } = manifest);
       const { source_branch: branch, source_folder: sourceFolder } = manifest;
       if (githubRepo && typeof branch === "string" && branch &&
           typeof sourceFolder === "string" && sourceFolder) {
@@ -1700,34 +1715,100 @@ function init() {
       return;
     }
 
-    const bounds = L.latLngBounds([]);
-    let loaded = 0;
-    let failed = 0;
-    for (const name of new Set(files)) {
+    const routes = [...new Set(files)].flatMap(name => {
       const url = new URL(encodeURIComponent(name), folder);
-      const id = `published:${url.pathname}`;
-      if (importLayers.has(id)) continue;
-      publishedStatus.textContent = `Loading published route · ${name}`;
+      const bounds = indexedBounds && Object.hasOwn(indexedBounds, name) ? indexedBounds[name] : undefined;
+      if (bounds === null) return [];
+      const valid = Array.isArray(bounds) && bounds.length === 4 && bounds.every(Number.isFinite) &&
+        bounds[0] <= bounds[2] && bounds[1] <= bounds[3];
+      return [{ id: `published:${url.pathname}`, name, url, bounds: valid ? bounds : null }];
+    });
+    const displayed = new Set();
+    const inFlight = new Map();
+    const failed = new Set();
+    let wanted = new Map();
+    let queued = new Set();
+
+    function loadVisibleFiles() {
+      while (inFlight.size < 4 && queued.size) {
+        const id = queued.values().next().value;
+        queued.delete(id);
+        const controller = new AbortController();
+        inFlight.set(id, controller);
+        loadFile(wanted.get(id), controller);
+      }
+      publishedStatus.textContent = inFlight.size
+        ? `Loading published outings · ${displayed.size} of ${wanted.size}`
+        : `${displayed.size} published route files in view.${failed.size ? ` Could not load ${failed.size}.` : ""}`;
+    }
+
+    async function loadFile({ id, name, url }, controller) {
       try {
-        const response = await fetch(url, { cache: "no-cache" });
+        const response = await fetch(url, { signal: controller.signal });
         if (!response.ok) throw new Error("Route unavailable.");
         const data = await response.json();
+        if (controller.signal.aborted || !wanted.has(id)) return;
         const plotted = plotImportedRoute({ id, name, data, snapped: containsSnappedRoute(data) });
         if (!plotted) throw new Error("No map geometry found.");
         const repositoryFile = repositoryFolder && repositoryFolder + encodeURIComponent(name);
         importLayers.get(id).eachLayer(layer => bindPublishedOuting(layer, url, availablePhotos, repositoryFile));
-        bounds.extend(plotted);
-        loaded++;
+        displayed.add(id);
+        refreshMap();
       } catch {
-        failed++;
+        if (importLayers.has(id)) {
+          removeImportedRoute(id);
+          refreshMap();
+        }
+        if (!controller.signal.aborted) failed.add(id);
+      } finally {
+        inFlight.delete(id);
+        if (controller.signal.aborted && wanted.has(id)) queued.add(id);
+        loadVisibleFiles();
       }
     }
-    refreshMap();
-    if (bounds.isValid() && !current && !draft && checkedRecorded.size + checkedImported.size === 0) {
-      map.fitBounds(bounds, { maxZoom: 17, padding: [30, 30] });
+
+    function updateViewport() {
+      const viewport = map.getBounds();
+      wanted = new Map(routes.filter(route => !route.bounds || overlapsViewport(viewport, route.bounds))
+        .map(route => [route.id, route]));
+      queued = new Set([...wanted.keys()].filter(id => !displayed.has(id) && !inFlight.has(id)));
+      failed.clear();
+      for (const [id, controller] of inFlight) {
+        if (!wanted.has(id)) controller.abort();
+      }
+      let changed = false;
+      for (const id of displayed) {
+        if (wanted.has(id)) continue;
+        removeImportedRoute(id);
+        displayed.delete(id);
+        changed = true;
+      }
+      if (changed) refreshMap();
+      loadVisibleFiles();
     }
-    publishedStatus.textContent = loaded ? `Loaded ${loaded} published route files.` : "";
-    if (failed) publishedStatus.textContent += ` Could not load ${failed} published route files.`;
+
+    // When the untouched default view is empty, start near the closest published file.
+    const viewport = map.getBounds();
+    const center = map.getCenter();
+    if (!current && !draft && map.getZoom() === 14 && center.equals([25.035, 121.539]) &&
+        !routes.some(route => !route.bounds || overlapsViewport(viewport, route.bounds))) {
+      let nearest = null;
+      let nearestDistance = Infinity;
+      for (const { bounds } of routes) {
+        if (!bounds) continue;
+        const [west, south, east, north] = bounds;
+        const extent = L.latLngBounds([[south, west], [north, east]]);
+        const distance = map.distance(center, extent.getCenter());
+        if (distance < nearestDistance) {
+          nearest = extent;
+          nearestDistance = distance;
+        }
+      }
+      if (nearest) map.fitBounds(nearest, { maxZoom: 17, padding: [30, 30], animate: false });
+    }
+
+    map.on("moveend", updateViewport);
+    updateViewport();
   }
 
   if (["127.0.0.1", "localhost"].includes(window.location.hostname)) {
