@@ -6,12 +6,12 @@
 <title>Streetlog</title>
 <meta name="description" content="Record GPS walks and see which streets you've explored.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="style.css?v=snap-configuration-1">
+<link rel="stylesheet" href="style.css?v=draft-icons-1">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script defer src="vendor/exifr.js"></script>
 <script defer src="folder-library.js"></script>
 <script defer src="github-publisher.js?v=outing-album-1"></script>
-<script defer src="app.js?v=snap-configuration-1"></script>
+<script defer src="app.js?v=draft-icons-1"></script>
 </head>
 <body>
 <header><h1 class="brand"><span class="mark" aria-hidden="true">⌖</span><span id="site-name">Streetlog</span></h1><button id="locate" class="outline" type="button"><span aria-hidden="true">⌖</span> My location</button></header>
@@ -20,7 +20,7 @@
 <section class="record">
 <div class="state"><span id="dot"></span><span id="status" role="status"></span></div>
 <div class="record-actions">
-<button id="record" type="button">
+<button id="record" class="primary" type="button">
 <svg class="record-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
 <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
 <circle cx="12" cy="12" r="4" fill="currentColor"/>
@@ -38,6 +38,9 @@ Pin
 <p id="hint"></p>
 <fieldset id="outing-draft" hidden>
 <legend>Unsaved outing</legend>
+<button id="discard-draft" type="button" aria-label="Discard outing" title="Discard outing">
+<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true" focusable="false"><path d="m6 6 12 12M18 6 6 18"/></svg>
+</button>
 <label for="draft-category">Category</label>
 <select id="draft-category"><option>Uncategorized</option></select>
 <details id="draft-new-category">
@@ -55,16 +58,19 @@ Pin
 <textarea id="draft-description" rows="3"></textarea>
 <section class="draft-album" aria-labelledby="draft-album-label">
 <h2 id="draft-album-label">Album</h2>
-<button id="draft-photo-picker" class="outline" type="button">Choose or drop photos</button>
+<button id="draft-photo-picker" class="outline" type="button" aria-label="Choose or drop photos" title="Choose or drop photos">
+<svg viewBox="0 0 28 26" width="28" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+<path d="m5 19-2.3.3a1.8 1.8 0 0 1-2-1.6L.3 6.5A1.8 1.8 0 0 1 1.9 4.4l18-2.4A1.8 1.8 0 0 1 22 3.5l.2 2.1"/>
+<rect x="5" y="7" width="22" height="17" rx="2.5"/>
+<circle cx="11" cy="12.5" r="1.5" fill="currentColor" stroke="none"/>
+<path d="m5.6 21 5.1-4.6 3.2 2.7 5.1-5.5 7.4 7.4v1.2a1.2 1.2 0 0 1-1.2 1.2H6.8a1.2 1.2 0 0 1-1.2-1.2Z" fill="currentColor" stroke="none"/>
+</svg>
+</button>
 <input id="draft-photo-files" type="file" accept="image/*" multiple hidden>
 <p id="draft-photo-status" role="status"></p>
 <ul id="draft-photo-list" class="draft-photo-list"></ul>
 </section>
-<div class="draft-actions">
-<button id="discard-draft" class="outline" type="button">Discard</button>
-<button id="export-draft" class="outline" type="button">Export GeoJSON</button>
-<button id="push-draft" class="outline" type="button" disabled>Push to GitHub</button>
-</div>
+<button id="push-draft" class="primary" type="button" disabled>Push to GitHub</button>
 </fieldset>
 </section>
 <details id="github-settings" class="github-settings">

@@ -20,8 +20,8 @@ p{margin:0;color:var(--muted)}
 #dot.active{background:#b52d4f}
 button{font:inherit;font-size:.9rem;font-weight:680;min-height:44px;border-radius:9px;cursor:pointer;padding:8px 14px}
 button:focus-visible{outline:3px solid #006b85;outline-offset:3px}
-#record{width:100%;background:var(--green);color:white;border:1px solid var(--green)}
-#record:hover{background:#104e38}
+.primary{width:100%;background:var(--green);color:white;border:1px solid var(--green)}
+.primary:hover:not(:disabled){background:#104e38}
 #record .stop-icon,#record.is-recording .record-icon{display:none}
 #record.is-recording .stop-icon{display:block}
 .outline{background:white;border:1px solid var(--line);color:var(--ink)}
@@ -127,14 +127,13 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 #layer-status:not(:empty){margin-top:5px;font-size:.8rem}
 @media(max-width:700px){.layer-list{max-height:31dvh}}
 
-.draft-actions{display:flex;flex-wrap:wrap;gap:8px}
 .record-actions{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:6px}
 .record-actions button{padding-inline:5px;font-size:.8125rem}
 #record,#drop-pin{display:flex;align-items:center;justify-content:center;gap:4px}
 #drop-pin{background:#ffb000;color:#3c2800;border:1px solid #ffb000}
 #drop-pin:hover:not(:disabled){background:#f0a400}
 .record-actions svg{flex:none}
-#outing-draft{min-width:0;margin:14px 0 0;padding:10px;border:1px solid var(--line);border-radius:9px}
+#outing-draft{position:relative;min-width:0;margin:14px 0 0;padding:10px;border:1px solid var(--line);border-radius:9px}
 #outing-draft legend{font-weight:680;padding:0 4px}
 #outing-draft label{display:block;font-size:.875rem;margin-bottom:4px}
 #outing-draft select,#outing-draft textarea{width:100%;font:inherit;color:inherit;border:1px solid var(--line);border-radius:6px;background:white;padding:6px;margin-bottom:10px}
@@ -154,7 +153,7 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 
 .draft-album{margin-bottom:12px}
 .draft-album h2{margin-bottom:6px}
-#draft-photo-picker{width:100%;border-style:dashed}
+#draft-photo-picker{width:100%;display:grid;place-items:center;border-style:dashed;color:#0875b9}
 #draft-photo-picker.is-dragging{background:#e9f3ec;border-color:var(--green)}
 #draft-photo-status:not(:empty){margin-top:6px;font-size:.8rem}
 .draft-photo-list{list-style:none;margin:0;padding:0}
@@ -167,3 +166,6 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 .published-outing-details p{margin:0;color:inherit}
 .published-outing-description{white-space:pre-wrap;max-height:25vh;overflow:auto}
 .leaflet-tooltip.published-outing-tooltip{pointer-events:auto}
+
+#discard-draft{position:absolute;inset-block-start:-16px;inset-inline-end:7px;width:44px;height:44px;padding:0;display:grid;place-items:center;border:3px solid white;border-radius:50%;background:#252525;color:white}
+#discard-draft:hover:not(:disabled){background:#444}

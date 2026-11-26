@@ -437,7 +437,6 @@ function init() {
   const categoryInput = byId("draft-category-name");
   const categoryStatus = byId("draft-category-status");
   const draftDescription = byId("draft-description");
-  const draftExport = byId("export-draft");
   const photoPicker = byId("draft-photo-picker");
   const draftPhotoFiles = byId("draft-photo-files");
   const draftPhotoStatus = byId("draft-photo-status");
@@ -2050,7 +2049,6 @@ function init() {
     dropPin.disabled = !gpsAvailable || locatingPin || Boolean(current || draft);
     snapStreets.disabled = Boolean(current || draft) || locatingPin;
     draftFields.hidden = !draft;
-    draftExport.disabled = matchingRecording || preparingPhotos || publishing;
     photoPicker.disabled = preparingPhotos || publishing;
     for (const button of draftPhotoList.querySelectorAll("button")) button.disabled = publishing;
     discardDraft.disabled = publishing;
@@ -2418,11 +2416,7 @@ function init() {
   discardDraft.addEventListener("click", () => {
     if (draft && !publishing) closeDraft("Outing discarded");
   });
-  draftExport.addEventListener("click", () => {
-    if (!draft || matchingRecording || preparingPhotos || publishing) return;
-    downloadOutings([draft], `streetlog-${draft.kind}-${draft.id}.geojson`);
-    closeDraft("GeoJSON export started");
-  });
+
   window.addEventListener("beforeunload", event => {
     if (!current?.segments.length && !draft) return;
     event.preventDefault();
