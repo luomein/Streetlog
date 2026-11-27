@@ -175,7 +175,7 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 
 
 .map-location-control{position:absolute;z-index:500;top:10px;left:10px;max-width:calc(100% - 65px);display:flex;align-items:center;gap:6px}
-#locate{width:44px;height:44px;padding:0;display:grid;place-items:center;flex:none;box-shadow:0 2px 8px #142b2522}
+#locate,#expand-map{width:44px;height:44px;padding:0;display:grid;place-items:center;flex:none;box-shadow:0 2px 8px #142b2522}
 #locate-status:not(:empty){background:white;padding:5px 8px;border-radius:6px;font-size:.8rem;overflow-wrap:anywhere}
 
 .layer-count{flex:none;font-size:.72rem;font-weight:500;font-variant-numeric:tabular-nums}
@@ -218,3 +218,8 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 #feedback-file{margin:4px 0 10px;font-size:.8rem;overflow-wrap:anywhere}
 #feedback-form label{display:block;font-size:.875rem;margin-bottom:4px}
 #feedback-description{width:100%;min-width:0;margin-bottom:10px;border:1px solid var(--line);border-radius:6px;padding:6px;font:inherit;resize:vertical}
+
+#expand-map svg{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#expand-map[aria-pressed="false"] .exit-map-icon,#expand-map[aria-pressed="true"] .expand-map-icon{display:none}
+#map-dialog{position:fixed;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;border:0;padding:0;overflow:hidden;background:#e4ece7}
+#map-dialog .map-panel{position:absolute;inset:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);height:auto;min-height:0}

@@ -419,6 +419,41 @@ function init() {
     maxZoom: 19
   }).addTo(map);
 
+  const expandMap = byId("expand-map");
+  const mapDialog = byId("map-dialog");
+  const mapPanel = byId("map-panel");
+  const mapHome = mapPanel.parentNode;
+
+  function resizeFullscreenMap(expanded) {
+    const center = map.getCenter();
+    const zoom = map.getZoom();
+    if (expanded) {
+      mapDialog.append(mapPanel);
+      mapDialog.showModal();
+    } else {
+      mapHome.append(mapPanel);
+      mapDialog.close();
+    }
+    expandMap.setAttribute("aria-pressed", String(expanded));
+    expandMap.title = expanded ? "Exit full-screen map" : "Expand map to full screen";
+    expandMap.setAttribute("aria-label", expandMap.title);
+    map.invalidateSize({ pan: false });
+    map.setView(center, zoom, { animate: false });
+    expandMap.focus({ preventScroll: true });
+  }
+
+  expandMap.addEventListener("click", () => resizeFullscreenMap(!mapDialog.open));
+  mapDialog.addEventListener("cancel", event => {
+    event.preventDefault();
+    resizeFullscreenMap(false);
+  });
+
+  function revealSidebarSection(section, focus = null) {
+    if (mapDialog.open) resizeFullscreenMap(false);
+    focus?.focus({ preventScroll: true });
+    section.scrollIntoView?.({ block: "nearest" });
+  }
+
   let routingAttributed = false;
   const categoryLayers = new Map();
   const categoryConfig = new Map();
@@ -1003,8 +1038,7 @@ function init() {
     feedbackTrigger = trigger;
     byId("feedback-file").textContent = filename;
     feedbackPanel.hidden = false;
-    feedbackDescription.focus();
-    feedbackPanel.scrollIntoView?.({ block: "nearest" });
+    revealSidebarSection(feedbackPanel, feedbackDescription);
   }
 
   byId("close-feedback").addEventListener("click", () => {
@@ -1087,7 +1121,7 @@ ${details.join("\n")}`);
         button.addEventListener("click", () => {
           if (current || draft || locatingPin || publishing) {
             status.textContent = "Finish the current outing before editing another.";
-            draftFields.scrollIntoView?.({ block: "nearest" });
+            revealSidebarSection(draftFields);
             return;
           }
           showDraft({
@@ -1096,7 +1130,7 @@ ${details.join("\n")}`);
             description: properties.description,
             edit: { ...edit, existingPhotos: photos.map(name => ({ name, url: new URL(encodeURIComponent(name), folder).href })) }
           }, "");
-          draftFields.scrollIntoView?.({ block: "nearest" });
+          revealSidebarSection(draftFields);
         });
         actions.append(button);
       }
