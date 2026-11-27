@@ -1032,13 +1032,13 @@ function init() {
   let feedbackTarget;
   let feedbackTrigger;
 
-  function openFeedback(source, repositoryFile, properties, trigger) {
+  function openFeedback(source, fileUrl, properties, trigger) {
     const filename = decodeURIComponent(source.pathname.split("/").at(-1));
     const featureID = properties.TreeID ?? properties.treeId ?? properties.outing;
-    if (feedbackTarget?.repositoryFile !== repositoryFile || feedbackTarget?.featureID !== featureID) {
+    if (feedbackTarget?.fileUrl !== fileUrl || feedbackTarget?.featureID !== featureID) {
       feedbackDescription.value = "";
     }
-    feedbackTarget = { filename, repositoryFile, category: displayCategory(properties.category), featureID };
+    feedbackTarget = { filename, fileUrl, category: displayCategory(properties.category), featureID };
     feedbackTrigger = trigger;
     byId("feedback-file").textContent = filename;
     feedbackPanel.hidden = false;
@@ -1059,12 +1059,12 @@ function init() {
       feedbackDescription.focus();
       return;
     }
-    const { filename, repositoryFile, category, featureID } = feedbackTarget;
+    const { filename, fileUrl, category, featureID } = feedbackTarget;
     const repo = githubRepo.map(encodeURIComponent).join("/");
     const url = new URL(`https://github.com/${repo}/issues/new`);
     const code = value => `\`${String(value).replace(/[\`\r\n]/g, " ").slice(0, 120)}\``;
     const details = [
-      `- GeoJSON: [${filename}](${repositoryFile})`,
+      `- GeoJSON: [${filename}](${fileUrl})`,
       `- Category: ${code(category)}`
     ];
     if (typeof featureID === "number" || (typeof featureID === "string" && featureID.trim())) {
@@ -1104,14 +1104,14 @@ ${details.join("\n")}`);
       link.rel = "noopener";
       link.textContent = repositoryFile ? "Open GeoJSON on GitHub" : "Open GeoJSON";
       container.append(category, description, link);
-      const actions = !preview && repositoryFile ? document.createElement("div") : null;
+      const actions = !preview && githubRepo ? document.createElement("div") : null;
       if (actions) {
         actions.className = "published-outing-tools";
         const feedback = document.createElement("button");
         feedback.type = "button";
         feedback.className = "published-outing-feedback";
         feedback.textContent = "Feedback";
-        feedback.addEventListener("click", () => openFeedback(source, repositoryFile, properties, feedback));
+        feedback.addEventListener("click", () => openFeedback(source, link.href, properties, feedback));
         actions.append(feedback);
         container.append(actions);
       }
