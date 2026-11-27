@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "outing": "SL0015101006",
+        "outingKind": "pin",
+        "category": "樟樹",
+        "description": "資料集：臺北市行道樹及公園樹木分布圖\n資料來源網頁：https://data.gov.tw/dataset/128274\n資料資源：公園樹木資料\nTreeID：SL0015101006\nDist：士林區\nParkName：天母公園、綠地\nDiameter：16.5\nTreeHeight：10.2\nTWD97X：303589.74\nTWD97Y：2780314.87\nSurveyDate：2023-08-07\nUpdDate：2026-11-13 09:37:53",
+        "photoFileNames": [],
+        "streetSnapped": false,
+        "timestamps": [
+          null
+        ],
+        "accuracyMeters": [
+          null
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.53146384,
+          25.13029425
+        ]
+      }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "outing": "BT0614021097",
+        "outingKind": "pin",
+        "category": "白千層",
+        "description": "資料集：臺北市行道樹及公園樹木分布圖\n資料來源網頁：https://data.gov.tw/dataset/128274\n資料資源：行道樹資料\nTreeID：BT0614021097\nDist：士林區\nRegion：文林路\nRegionRemark：東側人行道\nDiameter：45\nTreeHeight：6.8\nSurveyDate：2022-11-18\nTWD97X：302408.24\nTWD97Y：2777352.36\nUpdDate：2026-11-26 13:54:27",
+        "photoFileNames": [],
+        "streetSnapped": false,
+        "timestamps": [
+          null
+        ],
+        "accuracyMeters": [
+          null
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.51963387,
+          25.10359066
+        ]
+      }
+    }
+  ]
+}

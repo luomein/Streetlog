@@ -1,0 +1,29 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "outing": "BT0614031096",
+        "outingKind": "pin",
+        "category": "茄苳",
+        "description": "資料集：臺北市行道樹及公園樹木分布圖\n資料來源網頁：https://data.gov.tw/dataset/128274\n資料資源：行道樹資料\nTreeID：BT0614031096\nDist：士林區\nRegion：文林路\nRegionRemark：西側人行道\nDiameter：6\nTreeHeight：7.7\nSurveyDate：2022-11-18\nTWD97X：302374.59\nTWD97Y：2777340.07\nUpdDate：2026-11-26 13:54:27",
+        "photoFileNames": [],
+        "streetSnapped": false,
+        "timestamps": [
+          null
+        ],
+        "accuracyMeters": [
+          null
+        ]
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          121.51929977,
+          25.10348087
+        ]
+      }
+    }
+  ]
+}
