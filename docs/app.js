@@ -1043,6 +1043,8 @@ ${details.join("\n")}`);
     window.open(url.href, "_blank", "noopener,noreferrer");
   });
 
+  const hoverInput = window.matchMedia?.("(hover: hover) and (pointer: fine)");
+
   function bindPublishedOuting(layer, source, availablePhotos, repositoryFile, edit) {
     const properties = layer.feature?.properties ?? {};
     const names = Array.isArray(properties.photoFileNames) ? properties.photoFileNames : [];
@@ -1151,6 +1153,9 @@ ${details.join("\n")}`);
     };
 
     layer.on("mouseover", event => {
+      const input = event.originalEvent;
+      if (hoverInput?.matches === false || input?.pointerType === "touch" ||
+          input?.sourceCapabilities?.firesTouchEvents) return;
       keepOpen();
       if (!layer.isPopupOpen() && !map.hasLayer(tooltip)) {
         const language = window.streetlogLanguage?.current;
