@@ -466,6 +466,7 @@ function init() {
   const draftPhotoList = byId("draft-photo-list");
   let preparingPhotos = false;
   const pushDraft = byId("push-draft");
+  const submitEdit = byId("submit-edit");
   const discardDraft = byId("discard-draft");
   const githubMethod = byId("github-method");
   const githubTokenSettings = byId("github-token-settings");
@@ -987,7 +988,7 @@ function init() {
   const snapStreets = byId("snap-streets");
   snapStreets.checked = true;
 
-  function bindPublishedOuting(layer, source, availablePhotos, repositoryFile) {
+  function bindPublishedOuting(layer, source, availablePhotos, repositoryFile, edit) {
     const properties = layer.feature?.properties ?? {};
     const names = Array.isArray(properties.photoFileNames) ? properties.photoFileNames : [];
     const photos = [...new Set(names)].filter(name => availablePhotos.has(name));
@@ -1008,6 +1009,29 @@ function init() {
       link.rel = "noopener";
       link.textContent = repositoryFile ? "Open GeoJSON on GitHub" : "Open GeoJSON";
       container.append(category, description, link);
+      if (!preview && edit && guestEndpoint) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "published-outing-edit";
+        button.title = "Edit outing";
+        button.setAttribute("aria-label", button.title);
+        button.innerHTML = '<svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true"><path d="M12 5H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7M9 15l1-4 9-9 4 4-9 9-5 1Z"/></svg>';
+        button.addEventListener("click", () => {
+          if (current || draft || locatingPin || publishing) {
+            status.textContent = "Finish the current outing before editing another.";
+            draftFields.scrollIntoView?.({ block: "nearest" });
+            return;
+          }
+          showDraft({
+            segments: [],
+            category: properties.category,
+            description: properties.description,
+            edit: { ...edit, existingPhotos: photos.map(name => ({ name, url: new URL(encodeURIComponent(name), folder).href })) }
+          }, "");
+          draftFields.scrollIntoView?.({ block: "nearest" });
+        });
+        container.append(button);
+      }
       if (photos.length) container.append(gallery(preview));
       return container;
     }
@@ -2064,12 +2088,21 @@ function init() {
       try {
         const response = await fetch(url, { signal: controller.signal });
         if (!response.ok) throw new Error("Route unavailable.");
-        const data = await response.json();
+        const bytes = await response.arrayBuffer();
+        const data = JSON.parse(new TextDecoder().decode(bytes));
         if (controller.signal.aborted || !wanted.has(id)) return;
         const plotted = plotImportedRoute({ id, name, data, snapped: containsSnappedRoute(data) });
         if (!plotted) throw new Error("No map geometry found.");
         const repositoryFile = repositoryFolder && repositoryFolder + encodeURIComponent(name);
-        importLayers.get(id).eachLayer(layer => bindPublishedOuting(layer, url, availablePhotos, repositoryFile));
+        const features = data.type === "FeatureCollection" && Array.isArray(data.features)
+          ? data.features : data.type === "Feature" ? [data] : [];
+        const featureIndexes = new Map(features.map((feature, index) => [feature, index]));
+        importLayers.get(id).eachLayer(layer => {
+          const featureIndex = featureIndexes.get(layer.feature);
+          const edit = repositoryFile && featureIndex !== undefined && bytes.byteLength <= 1024 * 1024
+            ? { filename: name, featureIndex, bytes } : null;
+          bindPublishedOuting(layer, url, availablePhotos, repositoryFile, edit);
+        });
         displayed.add(id);
         refreshMap();
       } catch {
@@ -2261,9 +2294,10 @@ function init() {
     syncCaptureControls();
   });
 
-  async function submitAsGuest(filename, data, photos) {
+  async function submitAsGuest(filename, data, photos, edit) {
     const form = new FormData();
-    form.append("geojson", new Blob([data], { type: "application/geo+json" }), filename);
+    if (edit) form.append("edit", JSON.stringify(edit));
+    else form.append("geojson", new Blob([data], { type: "application/geo+json" }), filename);
     for (const photo of photos) form.append("photos", photo.blob, photo.name);
     const response = await fetch(guestEndpoint, {
       method: "POST", body: form, credentials: "omit", redirect: "error",
@@ -2275,6 +2309,40 @@ function init() {
       throw new Error("The guest API did not return a GitHub pull request URL.");
     }
     return { url: pullRequest.href, pullRequest: true };
+  }
+
+  submitEdit.addEventListener("click", async () => {
+    if (!draft?.edit || !guestEndpoint || preparingPhotos || publishing) return;
+    const outing = draft;
+    if (!window.confirm(`Propose a public pull request to update ${outing.edit.filename}?`)) return;
+    publishing = true;
+    syncCaptureControls();
+    draftPhotoStatus.textContent = "Opening pull request…";
+    try {
+      const { filename, featureIndex, bytes } = outing.edit;
+      const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+      const version = Array.from(hash, byte => byte.toString(16).padStart(2, "0")).join("");
+      const result = await submitAsGuest(null, null, outing.album ?? [], {
+        filename, featureIndex, version, category: categoryName(outing.category), description: draftDescription.value
+      });
+      showPublishResult(result);
+      closeDraft("Pull request opened");
+    } catch (error) {
+      draftPhotoStatus.textContent = `Edit failed: ${error.message}`;
+    } finally {
+      publishing = false;
+      syncCaptureControls();
+    }
+  });
+
+  function showPublishResult(result) {
+    const link = document.createElement("a");
+    link.href = result.url;
+    link.textContent = result.pullRequest ? "View pull request" : "View GitHub commit";
+    link.target = "_blank";
+    link.rel = "noopener";
+    githubStatus.replaceChildren(link);
+    byId("github-settings").open = true;
   }
 
   pushDraft.addEventListener("click", async () => {
@@ -2305,12 +2373,7 @@ function init() {
         }
         result = await githubClient.upload(latest, filename, data, photos);
       }
-      const link = document.createElement("a");
-      link.href = result.url;
-      link.textContent = result.pullRequest ? "View pull request" : "View GitHub commit";
-      link.target = "_blank";
-      link.rel = "noopener";
-      githubStatus.replaceChildren(link);
+      showPublishResult(result);
       closeDraft(result.pullRequest ? "Pull request opened" : "Outing pushed to GitHub");
     } catch (error) {
       githubStatus.textContent = `Upload failed: ${error.message}`;
@@ -2331,7 +2394,13 @@ function init() {
     draftCategory.disabled = draftDescription.disabled = categoryInput.disabled = byId("draft-category-add").disabled = publishing;
     githubMethod.disabled = publishing || linking;
     githubTokenSettings.hidden = githubMethod.value !== "token";
-    pushDraft.disabled = !draft || !canPublishGitHub() || matchingRecording || preparingPhotos || publishing;
+    const editing = Boolean(draft?.edit);
+    byId("draft-create-title").hidden = editing;
+    byId("draft-edit-title").hidden = !editing;
+    pushDraft.hidden = editing;
+    pushDraft.disabled = !draft || editing || !canPublishGitHub() || matchingRecording || preparingPhotos || publishing;
+    submitEdit.hidden = !editing;
+    submitEdit.disabled = !editing || !guestEndpoint || preparingPhotos || publishing;
     githubUnlink.disabled = publishing || linking;
     githubToken.disabled = githubLink.disabled = rememberGitHub.disabled = !githubRepo || publishing || linking;
     githubUnlink.hidden = !githubTarget && !rememberGitHub.checked;
@@ -2339,7 +2408,7 @@ function init() {
 
   function showDraft(outing, message) {
     draft = outing;
-    draftDescription.value = outing.description ?? "";
+    draftDescription.value = typeof outing.description === "string" ? outing.description : "";
     categoryDetails.open = false;
     categoryInput.value = "";
     categoryStatus.textContent = "";
@@ -2573,6 +2642,19 @@ function init() {
   function renderDraftAlbum() {
     draftPhotoList.replaceChildren();
     const outing = draft;
+    for (const photo of outing?.edit?.existingPhotos ?? []) {
+      const row = document.createElement("li");
+      const link = document.createElement("a");
+      link.href = photo.url;
+      link.target = "_blank";
+      link.rel = "noopener";
+      const image = document.createElement("img");
+      image.src = photo.url;
+      image.alt = "";
+      link.append(image, document.createTextNode(photo.name));
+      row.append(link);
+      draftPhotoList.append(row);
+    }
     for (const photo of outing?.album ?? []) {
       const row = document.createElement("li");
       const link = document.createElement("a");
