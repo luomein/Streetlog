@@ -178,3 +178,10 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 .map-location-control{position:absolute;z-index:500;top:10px;left:10px;max-width:calc(100% - 65px);display:flex;align-items:center;gap:6px}
 #locate{width:44px;height:44px;padding:0;display:grid;place-items:center;flex:none;box-shadow:0 2px 8px #142b2522}
 #locate-status:not(:empty){background:white;padding:5px 8px;border-radius:6px;font-size:.8rem;overflow-wrap:anywhere}
+
+.layer-count{flex:none;font-size:.72rem;font-weight:500;font-variant-numeric:tabular-nums}
+.layer-name{position:relative;padding-inline-end:16px}
+.layer-triangle{position:absolute;inset-inline-end:0;margin:0}
+.layer-favorite{flex:none;width:34px;min-height:36px;padding:0;display:grid;place-items:center;background:none;border:0;color:#e32251}
+.layer-favorite svg{fill:none;stroke:currentColor;stroke-width:2;stroke-linejoin:round}
+.layer-favorite[aria-pressed="true"] svg{fill:currentColor}

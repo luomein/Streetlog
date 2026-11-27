@@ -425,6 +425,16 @@ function init() {
   const layerPreferenceKey = "streetlog.category-layers";
   const layerList = byId("category-layers");
   const expandedCategories = new Set();
+  const favoriteKey = "streetlog.favorite-categories";
+  const categoryCounts = new Map();
+  const categoryCountLabels = new Map();
+  const favorites = new Set();
+  try {
+    const saved = JSON.parse(localStorage.getItem(favoriteKey) || "[]");
+    if (Array.isArray(saved)) saved.filter(key => typeof key === "string").forEach(key => favorites.add(key));
+  } catch {
+    // Favorites still work for the current visit.
+  }
   const draftFields = byId("outing-draft");
   const draftCategory = byId("draft-category");
   const localCategoryKey = "streetlog.custom-categories";
@@ -573,15 +583,28 @@ function init() {
     highlightOutings();
   }
 
+  function updateCategoryCount(entry) {
+    const label = categoryCountLabels.get(entry.key);
+    if (!label) return;
+    const counts = categoryCounts.get(entry.key);
+    const visible = styleFor(entry).visible ? counts?.inView ?? 0 : 0;
+    const total = counts?.total ?? 0;
+    label.textContent = `(${visible}/${total})`;
+    label.title = `${visible} of ${total} published GeoJSON files in view`;
+    label.setAttribute("aria-label", label.title);
+  }
+
   function renderLayerControls() {
     layerList.replaceChildren();
+    categoryCountLabels.clear();
     const entries = [...categoryLayers.values()].sort((a, b) => a.name.localeCompare(b.name));
     const selectedCategory = draftCategory.value || uncategorized;
     draftCategory.replaceChildren(new Option(displayCategory(uncategorized), uncategorized),
       ...entries.filter(entry => entry.key !== categoryKey(uncategorized)).map(entry => new Option(entry.name)));
     draftCategory.value = [...draftCategory.options].find(option =>
       categoryKey(option.value) === categoryKey(selectedCategory))?.value ?? uncategorized;
-    for (const [index, entry] of entries.entries()) {
+    const ordered = entries.sort((a, b) => Number(favorites.has(b.key)) - Number(favorites.has(a.key)));
+    for (const [index, entry] of ordered.entries()) {
       const style = styleFor(entry);
       const row = document.createElement("div");
       row.className = "layer-row";
@@ -601,8 +624,32 @@ function init() {
       swatch.className = "layer-color";
       swatch.style.backgroundColor = style.color;
       swatch.setAttribute("aria-hidden", "true");
-      toggle.append(swatch, document.createTextNode(displayCategory(entry.name)), triangle);
-      heading.append(visible, toggle);
+      const count = document.createElement("span");
+      count.className = "layer-count";
+      categoryCountLabels.set(entry.key, count);
+      updateCategoryCount(entry);
+      toggle.append(swatch, document.createTextNode(displayCategory(entry.name)), count, triangle);
+      const favorite = document.createElement("button");
+      favorite.type = "button";
+      favorite.className = "layer-favorite";
+      const isFavorite = favorites.has(entry.key);
+      favorite.setAttribute("aria-pressed", String(isFavorite));
+      favorite.setAttribute("aria-label", `Favorite ${displayCategory(entry.name)}`);
+      favorite.title = isFavorite ? "Remove favorite" : "Add favorite";
+      favorite.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><path d="M12 21S3 15.7 3 8.7a4.7 4.7 0 0 1 9-1.9 4.7 4.7 0 0 1 9 1.9C21 15.7 12 21 12 21Z"/></svg>';
+      favorite.addEventListener("click", () => {
+        if (isFavorite) favorites.delete(entry.key);
+        else favorites.add(entry.key);
+        try {
+          localStorage.setItem(favoriteKey, JSON.stringify([...favorites]));
+        } catch {
+          byId("layer-status").textContent = "Favorites apply for this visit.";
+        }
+        renderLayerControls();
+        categoryLayers.get(entry.key)?.favoriteButton?.focus();
+      });
+      entry.favoriteButton = favorite;
+      heading.append(visible, toggle, favorite);
       const controls = document.createElement("div");
       controls.className = "layer-style";
       controls.id = `layer-style-${index}`;
@@ -619,6 +666,7 @@ function init() {
         saveLayerPreferences(entry, { ...overrides.get(entry.key), [key]: value });
         swatch.style.backgroundColor = styleFor(entry).color;
         reset.disabled = false;
+        if (key === "visible") updateCategoryCount(entry);
       };
       visible.addEventListener("change", () => update("visible", visible.checked));
       for (const [key, label, type, min, max, step] of [
@@ -1809,6 +1857,7 @@ function init() {
     let folder;
     let files;
     let indexedBounds;
+    let indexedCategories;
     let availablePhotos;
     let repositoryFolder;
     try {
@@ -1823,7 +1872,7 @@ function init() {
       const response = await fetch(new URL("index.json", folder), { cache: "no-cache" });
       if (!response.ok) throw new Error("Could not read the GeoJSON folder’s index.json.");
       const manifest = await response.json();
-      ({ files, bounds: indexedBounds } = manifest);
+      ({ files, bounds: indexedBounds, category_bounds: indexedCategories } = manifest);
       const { source_branch: branch, source_folder: sourceFolder } = manifest;
       if (githubRepo && typeof branch === "string" && branch &&
           typeof sourceFolder === "string" && sourceFolder) {
@@ -1847,8 +1896,22 @@ function init() {
       if (bounds === null) return [];
       const valid = Array.isArray(bounds) && bounds.length === 4 && bounds.every(Number.isFinite) &&
         bounds[0] <= bounds[2] && bounds[1] <= bounds[3];
-      return [{ id: `published:${url.pathname}`, name, url, bounds: valid ? bounds : null }];
+      const categories = new Map();
+      for (const [category, extent] of Object.entries(indexedCategories?.[name] ?? {})) {
+        if (!Array.isArray(extent) || extent.length !== 4 || !extent.every(Number.isFinite)) continue;
+        const key = getCategory(category).key;
+        const extents = categories.get(key) ?? [];
+        extents.push(extent);
+        categories.set(key, extents);
+      }
+      return [{ id: `published:${url.pathname}`, name, url, bounds: valid ? bounds : null, categories }];
     });
+    for (const { categories } of routes) {
+      for (const key of categories.keys()) {
+        if (!categoryCounts.has(key)) categoryCounts.set(key, { total: 0, inView: 0 });
+        categoryCounts.get(key).total++;
+      }
+    }
     const displayed = new Set();
     const inFlight = new Map();
     const failed = new Set();
@@ -1897,6 +1960,13 @@ function init() {
       const viewport = map.getBounds();
       wanted = new Map(routes.filter(route => !route.bounds || overlapsViewport(viewport, route.bounds))
         .map(route => [route.id, route]));
+      for (const counts of categoryCounts.values()) counts.inView = 0;
+      for (const { categories } of wanted.values()) {
+        for (const [key, extents] of categories) {
+          if (extents.some(extent => overlapsViewport(viewport, extent))) categoryCounts.get(key).inView++;
+        }
+      }
+      for (const entry of categoryLayers.values()) updateCategoryCount(entry);
       queued = new Set([...wanted.keys()].filter(id => !displayed.has(id) && !inFlight.has(id)));
       failed.clear();
       for (const [id, controller] of inFlight) {

@@ -9,20 +9,29 @@ from pathlib import Path
 DEFAULT_CATEGORY_STYLE = {"stroke": "#007985", "stroke-width": "5px", "stroke-opacity": 0.9}
 
 
-def category_names(data):
+def classified_geometries(data):
     if not isinstance(data, dict):
         return
-    if data.get("type") == "FeatureCollection":
+    kind = data.get("type")
+    if kind == "FeatureCollection":
         features = data.get("features")
         if isinstance(features, list):
             for feature in features:
-                yield from category_names(feature)
-    elif data.get("type") == "Feature":
+                yield from classified_geometries(feature)
+    elif kind == "Feature":
         properties = data.get("properties")
-        if isinstance(properties, dict):
-            name = properties.get("category")
-            if isinstance(name, str) and name.strip():
-                yield name.strip()
+        name = properties.get("category") if isinstance(properties, dict) else None
+        category = name.strip() if isinstance(name, str) and name.strip() else "Uncategorized"
+        yield category, data.get("geometry")
+    else:
+        yield "Uncategorized", data
+
+
+def extend_bounds(bounds, extent):
+    if bounds is None:
+        return extent.copy()
+    return [min(bounds[0], extent[0]), min(bounds[1], extent[1]),
+            max(bounds[2], extent[2]), max(bounds[3], extent[3])]
 
 
 def geometry_bounds(data):
@@ -69,6 +78,7 @@ def index_routes(config, folder, files):
                     and isinstance(entry.get("style"), dict)), DEFAULT_CATEGORY_STYLE)
     added = 0
     bounds = {}
+    category_bounds = {}
     for name in files:
         bounds[name] = None
         try:
@@ -76,8 +86,15 @@ def index_routes(config, folder, files):
         except (OSError, ValueError):
             print(f"Skipping category scan for unreadable GeoJSON: {name!r}")
             continue
-        bounds[name] = geometry_bounds(data)
-        for category in category_names(data):
+        file_categories = {}
+        category_bounds[name] = file_categories
+        for category, geometry in classified_geometries(data):
+            extent = geometry_bounds(geometry)
+            if extent is None:
+                continue
+            bounds[name] = extend_bounds(bounds[name], extent)
+            file_categories[category] = extend_bounds(file_categories.get(category), extent)
+        for category in file_categories:
             key = category.casefold()
             if key in known:
                 continue
@@ -85,7 +102,7 @@ def index_routes(config, folder, files):
             categories.append({"name": category, "style": dict(default)})
             added += 1
     print(f"Added {added} categories to the published site.json.")
-    return bounds
+    return bounds, category_bounds
 
 
 def build_pages(repository: Path, output: Path) -> None:
@@ -110,11 +127,12 @@ def build_pages(repository: Path, output: Path) -> None:
     files = [name for name in names if Path(name).suffix.lower() == ".geojson"]
     image_types = {".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif"}
     photos = [name for name in names if Path(name).suffix.lower() in image_types]
-    bounds = index_routes(config, folder, files)
+    bounds, category_bounds = index_routes(config, folder, files)
     (output / "site.json").write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     manifest = json.dumps({
         "files": files,
         "bounds": bounds,
+        "category_bounds": category_bounds,
         "photos": photos,
         "source_branch": os.environ.get("GITHUB_REF_NAME", "main"),
         "source_folder": (published_source.relative_to(repository) / relative_folder).as_posix(),
