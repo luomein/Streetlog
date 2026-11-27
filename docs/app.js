@@ -2116,6 +2116,7 @@ ${details.join("\n")}`);
     let indexedCategories;
     let availablePhotos;
     let repositoryFolder;
+    let repositoryFiles;
     let viewportFileLimit = 1000;
     try {
       const config = await siteConfig;
@@ -2132,6 +2133,12 @@ ${details.join("\n")}`);
       const manifest = await response.json();
       ({ files, bounds: indexedBounds, category_bounds: indexedCategories } = manifest);
       const { source_branch: branch, source_folder: sourceFolder } = manifest;
+      if (Object.hasOwn(manifest, "source_files")) {
+        repositoryFiles = new Set(Array.isArray(manifest.source_files) ? manifest.source_files : []);
+      } else if (githubRepo?.join("/").toLowerCase() === "luomein/taipei-trees") {
+        // Older Taipei Trees indexes list archive entries without identifying Git-tracked files.
+        repositoryFiles = new Set();
+      }
       if (githubRepo && typeof branch === "string" && branch &&
           typeof sourceFolder === "string" && sourceFolder) {
         const location = [...githubRepo, "blob", ...branch.split("/"), ...sourceFolder.split("/")];
@@ -2205,7 +2212,8 @@ ${details.join("\n")}`);
         if (controller.signal.aborted || !wanted.has(id)) return;
         const plotted = plotImportedRoute({ id, name, data, snapped: containsSnappedRoute(data) });
         if (!plotted) throw new Error("No map geometry found.");
-        const repositoryFile = repositoryFolder && repositoryFolder + encodeURIComponent(name);
+        const repositoryFile = repositoryFolder && (!repositoryFiles || repositoryFiles.has(name))
+          ? repositoryFolder + encodeURIComponent(name) : null;
         const features = data.type === "FeatureCollection" && Array.isArray(data.features)
           ? data.features : data.type === "Feature" ? [data] : [];
         const featureIndexes = new Map(features.map((feature, index) => [feature, index]));

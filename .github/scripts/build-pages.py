@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 import shutil
+import subprocess
 from pathlib import Path
 
 
@@ -125,6 +126,12 @@ def build_pages(repository: Path, output: Path) -> None:
     names = sorted((file.name for file in folder.iterdir() if file.is_file()),
                    key=lambda name: (name.casefold(), name))
     files = [name for name in names if Path(name).suffix.lower() == ".geojson"]
+    source_folder = published_source.relative_to(repository) / relative_folder
+    tracked_paths = set(subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", "-z", "HEAD", "--", source_folder.as_posix()],
+        cwd=repository,
+    ).decode("utf-8").split("\0"))
+    source_files = [name for name in files if (source_folder / name).as_posix() in tracked_paths]
     image_types = {".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif"}
     photos = [name for name in names if Path(name).suffix.lower() in image_types]
     bounds, category_bounds = index_routes(config, folder, files)
@@ -135,7 +142,8 @@ def build_pages(repository: Path, output: Path) -> None:
         "category_bounds": category_bounds,
         "photos": photos,
         "source_branch": os.environ.get("GITHUB_REF_NAME", "main"),
-        "source_folder": (published_source.relative_to(repository) / relative_folder).as_posix(),
+        "source_folder": source_folder.as_posix(),
+        "source_files": source_files,
     }, ensure_ascii=False, indent=2) + "\n"
     (folder / "index.json").write_text(manifest, encoding="utf-8")
     print(f"Indexed {len(files)} GeoJSON files and {len(photos)} photos in docs/{relative_folder}/.")
