@@ -424,6 +424,14 @@ function init() {
   const categoryConfig = new Map();
   const layerPreferenceKey = "streetlog.category-layers";
   const layerList = byId("category-layers");
+  const layerPanel = byId("layer-control");
+  const allLayers = byId("all-layers");
+  const layersDialog = byId("layers-dialog");
+  const expandLayers = byId("expand-layers");
+  const closeLayers = byId("close-layers");
+  const sortLayers = byId("sort-layers");
+  const layerPanelHome = layerPanel.parentNode;
+  let descendingCategories = false;
   const expandedCategories = new Set();
   const favoriteKey = "streetlog.favorite-categories";
   const categoryCounts = new Map();
@@ -568,19 +576,81 @@ function init() {
     return bounds;
   }
 
-  function saveLayerPreferences(entry, override) {
-    if (override) overrides.set(entry.key, override);
-    else overrides.delete(entry.key);
+  function persistLayerPreferences() {
     try {
       localStorage.setItem(layerPreferenceKey, JSON.stringify([...overrides]));
       byId("layer-status").textContent = "";
     } catch {
       byId("layer-status").textContent = "Changes apply for this visit. Browser storage is unavailable.";
     }
-    applyCategory(entry);
+  }
+
+  function refreshLayerSelections() {
     showPhotoSections();
     highlightServerItem();
     highlightOutings();
+  }
+
+  function saveLayerPreferences(entry, override) {
+    if (override) overrides.set(entry.key, override);
+    else overrides.delete(entry.key);
+    persistLayerPreferences();
+    applyCategory(entry);
+    updateLayerMaster();
+    refreshLayerSelections();
+  }
+
+  function updateLayerMaster() {
+    const available = categoryLayers.size;
+    const visible = [...categoryLayers.values()].filter(entry => styleFor(entry).visible).length;
+    allLayers.disabled = available === 0;
+    allLayers.checked = available > 0 && visible === available;
+    allLayers.indeterminate = visible > 0 && visible < available;
+  }
+
+  allLayers.addEventListener("click", event => event.stopPropagation());
+  allLayers.addEventListener("change", () => {
+    for (const entry of categoryLayers.values()) {
+      if (styleFor(entry).visible === allLayers.checked) continue;
+      overrides.set(entry.key, { ...overrides.get(entry.key), visible: allLayers.checked });
+      applyCategory(entry);
+    }
+    persistLayerPreferences();
+    refreshLayerSelections();
+    renderLayerControls();
+  });
+
+  sortLayers.addEventListener("click", () => {
+    descendingCategories = !descendingCategories;
+    sortLayers.title = descendingCategories ? "Sort categories A to Z" : "Sort categories Z to A";
+    sortLayers.setAttribute("aria-label", sortLayers.title);
+    renderLayerControls();
+  });
+
+  expandLayers.addEventListener("click", () => {
+    layersDialog.append(layerPanel);
+    expandLayers.hidden = true;
+    closeLayers.hidden = false;
+    layersDialog.showModal();
+    closeLayers.focus();
+  });
+  closeLayers.addEventListener("click", () => layersDialog.close());
+  layersDialog.addEventListener("close", () => {
+    layerPanelHome.append(layerPanel);
+    closeLayers.hidden = true;
+    expandLayers.hidden = false;
+    expandLayers.focus();
+  });
+  layerPanel.addEventListener("toggle", () => {
+    if (layersDialog.open && !layerPanel.open) layerPanel.open = true;
+  });
+
+  function zoomToCategory(entry) {
+    const bounds = categoryCounts.get(entry.key)?.extent;
+    if (!bounds?.isValid()) return;
+    revealCategory(entry);
+    if (layersDialog.open) layersDialog.close();
+    map.fitBounds(bounds, { maxZoom: 17, padding: [30, 30] });
   }
 
   function updateCategoryCount(entry) {
@@ -592,18 +662,22 @@ function init() {
     label.textContent = `(${visible}/${total})`;
     label.title = `${visible} of ${total} published GeoJSON files in view`;
     label.setAttribute("aria-label", label.title);
+    if (entry.targetButton) entry.targetButton.disabled = !total;
   }
 
   function renderLayerControls() {
     layerList.replaceChildren();
     categoryCountLabels.clear();
+    updateLayerMaster();
     const entries = [...categoryLayers.values()].sort((a, b) => a.name.localeCompare(b.name));
     const selectedCategory = draftCategory.value || uncategorized;
     draftCategory.replaceChildren(new Option(displayCategory(uncategorized), uncategorized),
       ...entries.filter(entry => entry.key !== categoryKey(uncategorized)).map(entry => new Option(entry.name)));
     draftCategory.value = [...draftCategory.options].find(option =>
       categoryKey(option.value) === categoryKey(selectedCategory))?.value ?? uncategorized;
-    const ordered = entries.sort((a, b) => Number(favorites.has(b.key)) - Number(favorites.has(a.key)));
+    const ordered = entries.sort((a, b) =>
+      Number(favorites.has(b.key)) - Number(favorites.has(a.key)) ||
+      (descendingCategories ? -1 : 1) * a.name.localeCompare(b.name));
     for (const [index, entry] of ordered.entries()) {
       const style = styleFor(entry);
       const row = document.createElement("div");
@@ -649,7 +723,16 @@ function init() {
         categoryLayers.get(entry.key)?.favoriteButton?.focus();
       });
       entry.favoriteButton = favorite;
-      heading.append(visible, toggle, favorite);
+      const target = document.createElement("button");
+      target.type = "button";
+      target.className = "layer-target";
+      target.title = `Zoom to ${displayCategory(entry.name)}`;
+      target.setAttribute("aria-label", target.title);
+      target.disabled = !categoryCounts.get(entry.key)?.total;
+      target.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="7"/><path d="M12 2v6m0 8v6M2 12h6m8 0h6"/><circle cx="12" cy="12" r="1"/></svg>';
+      target.addEventListener("click", () => zoomToCategory(entry));
+      entry.targetButton = target;
+      heading.append(visible, toggle, target, favorite);
       const controls = document.createElement("div");
       controls.className = "layer-style";
       controls.id = `layer-style-${index}`;
@@ -1907,9 +1990,14 @@ function init() {
       return [{ id: `published:${url.pathname}`, name, url, bounds: valid ? bounds : null, categories }];
     });
     for (const { categories } of routes) {
-      for (const key of categories.keys()) {
-        if (!categoryCounts.has(key)) categoryCounts.set(key, { total: 0, inView: 0 });
-        categoryCounts.get(key).total++;
+      for (const [key, extents] of categories) {
+        if (!categoryCounts.has(key)) categoryCounts.set(key, { total: 0, inView: 0, extent: L.latLngBounds([]) });
+        const counts = categoryCounts.get(key);
+        counts.total++;
+        for (const [west, south, east, north] of extents) {
+          counts.extent.extend([south, west]);
+          counts.extent.extend([north, east]);
+        }
       }
     }
     const displayed = new Set();
