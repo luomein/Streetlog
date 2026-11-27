@@ -689,6 +689,10 @@ function init() {
       const toggle = document.createElement("button");
       toggle.type = "button";
       toggle.className = "layer-disclosure";
+      const disclosure = document.createElement("button");
+      disclosure.type = "button";
+      disclosure.className = "layer-style-toggle";
+      disclosure.setAttribute("aria-label", `Style settings for ${displayCategory(entry.name)}`);
       const triangle = document.createElement("span");
       triangle.className = "layer-triangle";
       triangle.setAttribute("aria-hidden", "true");
@@ -704,7 +708,8 @@ function init() {
       count.className = "layer-count";
       categoryCountLabels.set(entry.key, count);
       updateCategoryCount(entry);
-      toggle.append(swatch, document.createTextNode(displayCategory(entry.name)), count, triangle);
+      toggle.append(swatch, document.createTextNode(displayCategory(entry.name)), count);
+      disclosure.append(triangle);
       const favorite = document.createElement("button");
       favorite.type = "button";
       favorite.className = "layer-favorite";
@@ -734,19 +739,24 @@ function init() {
       target.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="7"/><path d="M12 2v6m0 8v6M2 12h6m8 0h6"/><circle cx="12" cy="12" r="1"/></svg>';
       target.addEventListener("click", () => zoomToCategory(entry));
       entry.targetButton = target;
-      heading.append(visible, toggle, target, favorite);
+      heading.append(visible, toggle, target, favorite, disclosure);
       const controls = document.createElement("div");
       controls.className = "layer-style";
       controls.id = `layer-style-${index}`;
-      toggle.setAttribute("aria-controls", controls.id);
       controls.hidden = !expandedCategories.has(entry.key);
-      toggle.setAttribute("aria-expanded", String(!controls.hidden));
-      toggle.addEventListener("click", () => {
-        controls.hidden = !controls.hidden;
-        toggle.setAttribute("aria-expanded", String(!controls.hidden));
-        if (controls.hidden) expandedCategories.delete(entry.key);
-        else expandedCategories.add(entry.key);
-      });
+      const setExpanded = expanded => {
+        for (const button of [toggle, disclosure]) button.setAttribute("aria-expanded", String(expanded));
+      };
+      for (const button of [toggle, disclosure]) {
+        button.setAttribute("aria-controls", controls.id);
+        button.addEventListener("click", () => {
+          controls.hidden = !controls.hidden;
+          setExpanded(!controls.hidden);
+          if (controls.hidden) expandedCategories.delete(entry.key);
+          else expandedCategories.add(entry.key);
+        });
+      }
+      setExpanded(!controls.hidden);
       const update = (key, value) => {
         saveLayerPreferences(entry, { ...overrides.get(entry.key), [key]: value });
         swatch.style.backgroundColor = styleFor(entry).color;
