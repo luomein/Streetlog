@@ -469,6 +469,7 @@ function init() {
   const expandedCategories = new Set();
   const favoriteKey = "streetlog.favorite-categories";
   const categoryCounts = new Map();
+  let updatePublishedViewport;
   const categoryCountLabels = new Map();
   const favorites = new Set();
   try {
@@ -627,11 +628,13 @@ function init() {
   }
 
   function saveLayerPreferences(entry, override) {
+    const wasVisible = styleFor(entry).visible;
     if (override) overrides.set(entry.key, override);
     else overrides.delete(entry.key);
     persistLayerPreferences();
     applyCategory(entry);
     updateLayerMaster();
+    if (wasVisible !== styleFor(entry).visible) updatePublishedViewport?.();
     refreshLayerSelections();
   }
 
@@ -651,6 +654,7 @@ function init() {
       applyCategory(entry);
     }
     persistLayerPreferences();
+    updatePublishedViewport?.();
     refreshLayerSelections();
     renderLayerControls();
   });
@@ -2228,7 +2232,21 @@ ${details.join("\n")}`);
 
     function updateViewport() {
       const viewport = map.getBounds();
-      const overlapping = routes.filter(route => !route.bounds || overlapsViewport(viewport, route.bounds));
+      const visibleKeys = new Set([...categoryLayers.values()]
+        .filter(entry => styleFor(entry).visible).map(entry => entry.key));
+      for (const counts of categoryCounts.values()) counts.inView = 0;
+      const overlapping = [];
+      for (const route of routes) {
+        if (route.bounds && !overlapsViewport(viewport, route.bounds)) continue;
+        // Older indexes may lack per-category bounds. Keep them loadable while layers are visible.
+        let eligible = route.categories.size === 0 && visibleKeys.size > 0;
+        for (const [key, extents] of route.categories) {
+          if (!extents.some(extent => overlapsViewport(viewport, extent))) continue;
+          categoryCounts.get(key).inView++;
+          if (visibleKeys.has(key)) eligible = true;
+        }
+        if (eligible) overlapping.push(route);
+      }
       let selected = overlapping;
       if (overlapping.length > viewportFileLimit) {
         // Reuse one random order so small pans don't reshuffle the routes still in view.
@@ -2247,12 +2265,6 @@ ${details.join("\n")}`);
         }
       }
       wanted = new Map(selected.map(route => [route.id, route]));
-      for (const counts of categoryCounts.values()) counts.inView = 0;
-      for (const { categories } of overlapping) {
-        for (const [key, extents] of categories) {
-          if (extents.some(extent => overlapsViewport(viewport, extent))) categoryCounts.get(key).inView++;
-        }
-      }
       for (const entry of categoryLayers.values()) updateCategoryCount(entry);
       refreshVisibleSort();
       queued = new Set([...wanted.keys()].filter(id => !displayed.has(id) && !inFlight.has(id)));
@@ -2271,6 +2283,7 @@ ${details.join("\n")}`);
       loadVisibleFiles();
     }
 
+    updatePublishedViewport = updateViewport;
     map.on("moveend", updateViewport);
     updateViewport();
   }
