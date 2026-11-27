@@ -647,11 +647,45 @@ function init() {
     map.fitBounds(bounds, { maxZoom: 17, padding: [30, 30] });
   }
 
+  function visibleCategoryFileCount(entry) {
+    return styleFor(entry).visible ? categoryCounts.get(entry.key)?.inView ?? 0 : 0;
+  }
+
+  function sortingByVisibleFiles() {
+    return sortLayers.value === "visible-desc" || sortLayers.value === "visible-asc";
+  }
+
+  function compareCategoryRows(a, b) {
+    const favoriteOrder = Number(favorites.has(b.key)) - Number(favorites.has(a.key));
+    if (favoriteOrder) return favoriteOrder;
+    const nameOrder = a.name.localeCompare(b.name);
+    const mode = sortLayers.value;
+    if (mode === "name-desc") return -nameOrder;
+    if (sortingByVisibleFiles()) {
+      const difference = visibleCategoryFileCount(a) - visibleCategoryFileCount(b);
+      return (mode === "visible-asc" ? difference : -difference) || nameOrder;
+    }
+    if (mode === "total-desc" || mode === "total-asc") {
+      const difference = (categoryCounts.get(a.key)?.total ?? 0) - (categoryCounts.get(b.key)?.total ?? 0);
+      return (mode === "total-asc" ? difference : -difference) || nameOrder;
+    }
+    return nameOrder;
+  }
+
+  function refreshVisibleSort() {
+    if (!sortingByVisibleFiles()) return;
+    const entries = [...categoryLayers.values()].sort(compareCategoryRows);
+    for (const [index, entry] of entries.entries()) {
+      const current = layerList.children[index];
+      if (entry.row !== current) layerList.insertBefore(entry.row, current ?? null);
+    }
+  }
+
   function updateCategoryCount(entry) {
     const label = categoryCountLabels.get(entry.key);
     if (!label) return;
     const counts = categoryCounts.get(entry.key);
-    const visible = styleFor(entry).visible ? counts?.inView ?? 0 : 0;
+    const visible = visibleCategoryFileCount(entry);
     const total = counts?.total ?? 0;
     label.textContent = `(${visible}/${total})`;
     label.title = `${visible} of ${total} published GeoJSON files in view`;
@@ -669,21 +703,12 @@ function init() {
       ...entries.filter(entry => entry.key !== categoryKey(uncategorized)).map(entry => new Option(entry.name)));
     draftCategory.value = [...draftCategory.options].find(option =>
       categoryKey(option.value) === categoryKey(selectedCategory))?.value ?? uncategorized;
-    const ordered = entries.sort((a, b) => {
-      const favoriteOrder = Number(favorites.has(b.key)) - Number(favorites.has(a.key));
-      if (favoriteOrder) return favoriteOrder;
-      const nameOrder = a.name.localeCompare(b.name);
-      if (sortLayers.value === "name-desc") return -nameOrder;
-      if (sortLayers.value === "total-desc" || sortLayers.value === "total-asc") {
-        const difference = (categoryCounts.get(a.key)?.total ?? 0) - (categoryCounts.get(b.key)?.total ?? 0);
-        return (sortLayers.value === "total-asc" ? difference : -difference) || nameOrder;
-      }
-      return nameOrder;
-    });
+    const ordered = entries.sort(compareCategoryRows);
     for (const [index, entry] of ordered.entries()) {
       const style = styleFor(entry);
       const row = document.createElement("div");
       row.className = "layer-row";
+      entry.row = row;
       const heading = document.createElement("div");
       heading.className = "layer-name";
       const toggle = document.createElement("button");
@@ -761,7 +786,10 @@ function init() {
         saveLayerPreferences(entry, { ...overrides.get(entry.key), [key]: value });
         swatch.style.backgroundColor = styleFor(entry).color;
         reset.disabled = false;
-        if (key === "visible") updateCategoryCount(entry);
+        if (key === "visible") {
+          updateCategoryCount(entry);
+          refreshVisibleSort();
+        }
       };
       visible.addEventListener("change", () => update("visible", visible.checked));
       for (const [key, label, type, min, max, step] of [
@@ -2068,6 +2096,7 @@ function init() {
         }
       }
       for (const entry of categoryLayers.values()) updateCategoryCount(entry);
+      refreshVisibleSort();
       queued = new Set([...wanted.keys()].filter(id => !displayed.has(id) && !inFlight.has(id)));
       failed.clear();
       for (const [id, controller] of inFlight) {
