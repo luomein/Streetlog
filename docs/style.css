@@ -131,7 +131,7 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 #drop-pin{background:#ffb000;color:#3c2800;border:1px solid #ffb000}
 #drop-pin:hover:not(:disabled){background:#f0a400}
 .record-actions svg{flex:none}
-#outing-draft{min-width:0;margin:14px 0 0;padding:10px;border:1px solid var(--line);border-radius:9px}
+#outing-draft{min-width:0;margin:0 0 14px;padding:10px;border:1px solid var(--line);border-radius:9px}
 #outing-draft legend{width:100%;font-weight:680;padding:0 0 0 4px}
 .draft-heading{position:relative;display:flex;align-items:center;gap:7px;padding-inline-end:30px}
 .draft-heading::after{content:"";flex:1;border-top:1px solid var(--line)}

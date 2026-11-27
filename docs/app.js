@@ -2533,7 +2533,7 @@ function init() {
         outing.recordedCoordinates = [[lng, lat]];
         Object.assign(point, { lat: snappedLat, lng: snappedLng });
         outing.snapped = true;
-        status.textContent = "Unsaved pin · snapped to a walking path";
+        status.textContent = "";
       } catch {
         if (draft === outing) status.textContent = "Unsaved pin · original GPS location";
       } finally {

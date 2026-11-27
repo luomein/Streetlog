@@ -6,37 +6,19 @@
 <title>Streetlog</title>
 <meta name="description" content="Record GPS walks and see which streets you've explored.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="style.css?v=layer-sort-disclosure-1">
+<link rel="stylesheet" href="style.css?v=draft-first-1">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script defer src="vendor/exifr.js"></script>
 <script defer src="folder-library.js"></script>
 <script defer src="github-publisher.js?v=outing-album-1"></script>
 <script defer src="localization.js?v=1"></script>
-<script defer src="app.js?v=layer-sort-in-view-1"></script>
+<script defer src="app.js?v=draft-first-1"></script>
 </head>
 <body>
 <header><h1 class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" focusable="false"><circle cx="12" cy="12" r="7"/><path d="M12 1v22M1 12h22"/></svg></span><span id="site-name">Streetlog</span></h1></header>
 <main>
 <aside>
 <section class="record">
-<div class="state"><span id="dot"></span><span id="status" role="status"></span></div>
-<div class="record-actions">
-<button id="record" class="primary" type="button">
-<svg class="record-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
-<circle cx="12" cy="12" r="4" fill="currentColor"/>
-</svg>
-<svg class="stop-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
-<rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/>
-</svg>
-<span id="record-label">Record</span>
-</button>
-<button id="drop-pin" type="button">
-<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="7" r="4" fill="currentColor"/><path d="M12 11v10"/></svg>
-Pin
-</button>
-</div>
-<p id="hint"></p>
 <fieldset id="outing-draft" hidden>
 <legend><span class="draft-heading">
 <span data-translation="web.unsaved_outing">Unsaved outing</span>
@@ -78,6 +60,24 @@ Pin
 </section>
 <button id="push-draft" data-translation="web.push_to_github" class="primary" type="button" disabled>Push to GitHub</button>
 </fieldset>
+<div class="state"><span id="dot"></span><span id="status" role="status"></span></div>
+<div class="record-actions">
+<button id="record" class="primary" type="button">
+<svg class="record-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+<circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/>
+<circle cx="12" cy="12" r="4" fill="currentColor"/>
+</svg>
+<svg class="stop-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+<rect x="5" y="5" width="14" height="14" rx="2" fill="currentColor"/>
+</svg>
+<span id="record-label">Record</span>
+</button>
+<button id="drop-pin" type="button">
+<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" focusable="false"><circle cx="12" cy="7" r="4" fill="currentColor"/><path d="M12 11v10"/></svg>
+Pin
+</button>
+</div>
+<p id="hint"></p>
 </section>
 <details id="github-settings" class="github-settings">
 <summary>GitHub</summary>
