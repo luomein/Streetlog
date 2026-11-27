@@ -1,4 +1,6 @@
 """Copy the public website and generate its published GeoJSON index."""
+from __future__ import annotations
+
 import argparse
 import json
 import os
@@ -106,7 +108,7 @@ def index_routes(config, folder, files):
     return bounds, category_bounds
 
 
-def build_pages(repository: Path, output: Path) -> None:
+def build_pages(repository: Path, output: Path, source_repository: Path | None = None) -> None:
     published_source = repository / "docs"
     config_file = repository / "site.json"
     config = json.loads(config_file.read_text(encoding="utf-8"))
@@ -129,7 +131,7 @@ def build_pages(repository: Path, output: Path) -> None:
     source_folder = published_source.relative_to(repository) / relative_folder
     tracked_paths = set(subprocess.check_output(
         ["git", "ls-tree", "-r", "--name-only", "-z", "HEAD", "--", source_folder.as_posix()],
-        cwd=repository,
+        cwd=source_repository if source_repository is not None else repository,
     ).decode("utf-8").split("\0"))
     source_files = [name for name in files if (source_folder / name).as_posix() in tracked_paths]
     image_types = {".jpg", ".jpeg", ".png", ".webp", ".avif", ".gif"}
@@ -152,5 +154,7 @@ def build_pages(repository: Path, output: Path) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("output", type=Path)
+    parser.add_argument("--source-repository", type=Path,
+                        help="Git checkout that provides the tracked GeoJSON paths for an assembled site.")
     args = parser.parse_args()
-    build_pages(Path(__file__).resolve().parents[2], args.output)
+    build_pages(Path(__file__).resolve().parents[2], args.output, args.source_repository)
