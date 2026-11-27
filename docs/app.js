@@ -2507,18 +2507,20 @@ function init() {
   });
 
   locate.addEventListener("click", () => {
+    const feedback = byId("locate-status");
     locate.disabled = true;
-    locate.textContent = "Locating…";
-    const resetLocate = () => {
+    locate.setAttribute("aria-busy", "true");
+    feedback.textContent = "Locating…";
+    const resetLocate = (message = "") => {
       locate.disabled = false;
-      locate.textContent = "⌖ My location";
+      locate.removeAttribute("aria-busy");
+      feedback.textContent = message;
     };
     navigator.geolocation.getCurrentPosition(position => {
       showLocation({ lat: position.coords.latitude, lng: position.coords.longitude }, true);
       resetLocate();
     }, error => {
-      resetLocate();
-      locate.textContent = error.code === 1 ? "Location blocked · Retry" : "Location unavailable · Retry";
+      resetLocate(error.code === 1 ? "Location blocked · Retry" : "Location unavailable · Retry");
     }, gpsOptions);
   });
 

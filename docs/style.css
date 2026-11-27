@@ -7,7 +7,6 @@ header{min-height:72px;display:flex;align-items:center;justify-content:space-bet
   padding-inline-end:max(clamp(16px,4vw,56px),env(safe-area-inset-right,0px));background:white;border-bottom:1px solid var(--line)}
 .brand{margin:0;min-width:0;overflow-wrap:anywhere;display:flex;align-items:center;gap:10px;font-size:22px;font-weight:750;letter-spacing:-.045em}
 .mark{flex:none;display:grid;place-items:center;background:var(--green);color:white;width:37px;height:37px;border-radius:11px;font-size:24px}
-#locate{flex:0 1 auto;max-width:48%;overflow-wrap:anywhere}
 main{min-width:0;padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px);
   padding-bottom:env(safe-area-inset-bottom,0px);display:grid;grid-template-columns:minmax(280px,350px) minmax(0,1fr);min-height:calc(100dvh - 72px)}
 aside{min-width:0;overflow-wrap:anywhere;padding:clamp(24px,4vw,48px) clamp(18px,3vw,36px);display:flex;flex-direction:column;gap:23px;border-right:1px solid var(--line)}
@@ -174,3 +173,8 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 
 .language-option{display:flex;align-items:center;gap:8px;margin-top:12px}
 .language-option select{min-width:0;font:inherit;color:inherit;border:1px solid var(--line);border-radius:6px;background:white;padding:4px 6px}
+
+
+.map-location-control{position:absolute;z-index:500;top:10px;left:10px;max-width:calc(100% - 65px);display:flex;align-items:center;gap:6px}
+#locate{width:44px;height:44px;padding:0;display:grid;place-items:center;flex:none;box-shadow:0 2px 8px #142b2522}
+#locate-status:not(:empty){background:white;padding:5px 8px;border-radius:6px;font-size:.8rem;overflow-wrap:anywhere}
