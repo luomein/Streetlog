@@ -2112,10 +2112,12 @@ ${details.join("\n")}`);
     let indexedCategories;
     let availablePhotos;
     let repositoryFolder;
+    let viewportFileLimit = 1000;
     try {
       const config = await siteConfig;
       if (!config) return;
-      const { GeoJSON_folder: path, categories } = config;
+      const { GeoJSON_folder: path, categories, max_visible_geojson_files: limit } = config;
+      if (Number.isSafeInteger(limit) && limit > 0) viewportFileLimit = limit;
       configureCategories(categories);
       if (typeof path !== "string" || !path.trim()) throw new Error("Set GeoJSON_folder in site.json.");
       folder = new URL(path.trim().replace(/\/?$/, "/"), base);
@@ -2173,6 +2175,7 @@ ${details.join("\n")}`);
     const displayed = new Set();
     const inFlight = new Map();
     const failed = new Set();
+    let samplingOrder;
     let wanted = new Map();
     let queued = new Set();
 
@@ -2225,10 +2228,27 @@ ${details.join("\n")}`);
 
     function updateViewport() {
       const viewport = map.getBounds();
-      wanted = new Map(routes.filter(route => !route.bounds || overlapsViewport(viewport, route.bounds))
-        .map(route => [route.id, route]));
+      const overlapping = routes.filter(route => !route.bounds || overlapsViewport(viewport, route.bounds));
+      let selected = overlapping;
+      if (overlapping.length > viewportFileLimit) {
+        // Reuse one random order so small pans don't reshuffle the routes still in view.
+        if (!samplingOrder) {
+          samplingOrder = [...routes];
+          for (let index = samplingOrder.length - 1; index > 0; index--) {
+            const other = Math.floor(Math.random() * (index + 1));
+            [samplingOrder[index], samplingOrder[other]] = [samplingOrder[other], samplingOrder[index]];
+          }
+        }
+        const candidates = new Set(overlapping);
+        selected = [];
+        for (const route of samplingOrder) {
+          if (candidates.has(route)) selected.push(route);
+          if (selected.length === viewportFileLimit) break;
+        }
+      }
+      wanted = new Map(selected.map(route => [route.id, route]));
       for (const counts of categoryCounts.values()) counts.inView = 0;
-      for (const { categories } of wanted.values()) {
+      for (const { categories } of overlapping) {
         for (const [key, extents] of categories) {
           if (extents.some(extent => overlapsViewport(viewport, extent))) categoryCounts.get(key).inView++;
         }
