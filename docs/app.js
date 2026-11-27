@@ -988,6 +988,61 @@ function init() {
   const snapStreets = byId("snap-streets");
   snapStreets.checked = true;
 
+  const feedbackPanel = byId("geojson-feedback");
+  const feedbackDescription = byId("feedback-description");
+  let feedbackTarget;
+  let feedbackTrigger;
+
+  function openFeedback(source, repositoryFile, properties, trigger) {
+    const filename = decodeURIComponent(source.pathname.split("/").at(-1));
+    const featureID = properties.TreeID ?? properties.treeId ?? properties.outing;
+    if (feedbackTarget?.repositoryFile !== repositoryFile || feedbackTarget?.featureID !== featureID) {
+      feedbackDescription.value = "";
+    }
+    feedbackTarget = { filename, repositoryFile, category: displayCategory(properties.category), featureID };
+    feedbackTrigger = trigger;
+    byId("feedback-file").textContent = filename;
+    feedbackPanel.hidden = false;
+    feedbackDescription.focus();
+    feedbackPanel.scrollIntoView?.({ block: "nearest" });
+  }
+
+  byId("close-feedback").addEventListener("click", () => {
+    feedbackTarget = null;
+    feedbackPanel.hidden = true;
+    feedbackTrigger?.focus();
+    feedbackTrigger = null;
+  });
+
+  byId("feedback-form").addEventListener("submit", event => {
+    event.preventDefault();
+    const message = feedbackDescription.value.trim();
+    if (!feedbackTarget || !githubRepo || !message) {
+      feedbackDescription.focus();
+      return;
+    }
+    const { filename, repositoryFile, category, featureID } = feedbackTarget;
+    const repo = githubRepo.map(encodeURIComponent).join("/");
+    const url = new URL(`https://github.com/${repo}/issues/new`);
+    const code = value => `\`${String(value).replace(/[\`\r\n]/g, " ").slice(0, 120)}\``;
+    const details = [
+      `- GeoJSON: [${filename}](${repositoryFile})`,
+      `- Category: ${code(category)}`
+    ];
+    if (typeof featureID === "number" || (typeof featureID === "string" && featureID.trim())) {
+      details.push(`- Feature ID: ${code(featureID)}`);
+    }
+    url.searchParams.set("title", `Feedback for ${filename}`);
+    url.searchParams.set("body", `## Feedback
+
+${message}
+
+## GeoJSON file
+
+${details.join("\n")}`);
+    window.open(url.href, "_blank", "noopener,noreferrer");
+  });
+
   function bindPublishedOuting(layer, source, availablePhotos, repositoryFile, edit) {
     const properties = layer.feature?.properties ?? {};
     const names = Array.isArray(properties.photoFileNames) ? properties.photoFileNames : [];
@@ -1009,7 +1064,18 @@ function init() {
       link.rel = "noopener";
       link.textContent = repositoryFile ? "Open GeoJSON on GitHub" : "Open GeoJSON";
       container.append(category, description, link);
-      if (!preview && edit && guestEndpoint) {
+      const actions = !preview && repositoryFile ? document.createElement("div") : null;
+      if (actions) {
+        actions.className = "published-outing-tools";
+        const feedback = document.createElement("button");
+        feedback.type = "button";
+        feedback.className = "published-outing-feedback";
+        feedback.textContent = "Feedback";
+        feedback.addEventListener("click", () => openFeedback(source, repositoryFile, properties, feedback));
+        actions.append(feedback);
+        container.append(actions);
+      }
+      if (actions && edit && guestEndpoint) {
         const button = document.createElement("button");
         button.type = "button";
         button.className = "published-outing-edit";
@@ -1030,7 +1096,7 @@ function init() {
           }, "");
           draftFields.scrollIntoView?.({ block: "nearest" });
         });
-        container.append(button);
+        actions.append(button);
       }
       if (photos.length) container.append(gallery(preview));
       return container;
