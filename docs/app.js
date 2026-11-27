@@ -431,7 +431,6 @@ function init() {
   const closeLayers = byId("close-layers");
   const sortLayers = byId("sort-layers");
   const layerPanelHome = layerPanel.parentNode;
-  let descendingCategories = false;
   const expandedCategories = new Set();
   const favoriteKey = "streetlog.favorite-categories";
   const categoryCounts = new Map();
@@ -620,12 +619,7 @@ function init() {
     renderLayerControls();
   });
 
-  sortLayers.addEventListener("click", () => {
-    descendingCategories = !descendingCategories;
-    sortLayers.title = descendingCategories ? "Sort categories A to Z" : "Sort categories Z to A";
-    sortLayers.setAttribute("aria-label", sortLayers.title);
-    renderLayerControls();
-  });
+  sortLayers.addEventListener("change", renderLayerControls);
 
   expandLayers.addEventListener("click", () => {
     layersDialog.append(layerPanel);
@@ -675,9 +669,17 @@ function init() {
       ...entries.filter(entry => entry.key !== categoryKey(uncategorized)).map(entry => new Option(entry.name)));
     draftCategory.value = [...draftCategory.options].find(option =>
       categoryKey(option.value) === categoryKey(selectedCategory))?.value ?? uncategorized;
-    const ordered = entries.sort((a, b) =>
-      Number(favorites.has(b.key)) - Number(favorites.has(a.key)) ||
-      (descendingCategories ? -1 : 1) * a.name.localeCompare(b.name));
+    const ordered = entries.sort((a, b) => {
+      const favoriteOrder = Number(favorites.has(b.key)) - Number(favorites.has(a.key));
+      if (favoriteOrder) return favoriteOrder;
+      const nameOrder = a.name.localeCompare(b.name);
+      if (sortLayers.value === "name-desc") return -nameOrder;
+      if (sortLayers.value === "total-desc" || sortLayers.value === "total-asc") {
+        const difference = (categoryCounts.get(a.key)?.total ?? 0) - (categoryCounts.get(b.key)?.total ?? 0);
+        return (sortLayers.value === "total-asc" ? difference : -difference) || nameOrder;
+      }
+      return nameOrder;
+    });
     for (const [index, entry] of ordered.entries()) {
       const style = styleFor(entry);
       const row = document.createElement("div");
@@ -2000,6 +2002,7 @@ function init() {
         }
       }
     }
+    if (sortLayers.value === "total-desc" || sortLayers.value === "total-asc") renderLayerControls();
     const displayed = new Set();
     const inFlight = new Map();
     const failed = new Set();

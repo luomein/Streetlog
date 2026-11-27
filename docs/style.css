@@ -198,3 +198,8 @@ progress:not([hidden]){display:block;width:100%;margin-top:8px;accent-color:var(
 #layers-dialog .layer-control{position:relative;inset:auto;width:100%;max-width:none;min-height:100%;padding: max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));border:0;border-radius:0;box-shadow:none}
 #layers-dialog .layer-tools{inset-block-start:max(16px,env(safe-area-inset-top));inset-inline-end:max(16px,env(safe-area-inset-right))}
 #layers-dialog .layer-list{max-height:none;overflow:visible}
+
+.layer-sort{position:relative;width:32px;min-height:34px;display:grid;place-items:center;border-radius:9px;color:var(--muted)}
+.layer-sort:hover{background:#e9f3ec}
+.layer-sort:focus-within{outline:3px solid #006b85;outline-offset:2px}
+.layer-sort select{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}

@@ -6,13 +6,13 @@
 <title>Streetlog</title>
 <meta name="description" content="Record GPS walks and see which streets you've explored.">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-<link rel="stylesheet" href="style.css?v=layer-panel-1">
+<link rel="stylesheet" href="style.css?v=layer-sort-total-1">
 <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script defer src="vendor/exifr.js"></script>
 <script defer src="folder-library.js"></script>
 <script defer src="github-publisher.js?v=outing-album-1"></script>
 <script defer src="localization.js?v=1"></script>
-<script defer src="app.js?v=layer-panel-1"></script>
+<script defer src="app.js?v=layer-sort-total-1"></script>
 </head>
 <body>
 <header><h1 class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" focusable="false"><circle cx="12" cy="12" r="7"/><path d="M12 1v22M1 12h22"/></svg></span><span id="site-name">Streetlog</span></h1></header>
@@ -186,9 +186,15 @@ Pin
 <span data-translation="web.layers">Categories</span>
 </summary>
 <div class="layer-tools">
-<button id="sort-layers" type="button" aria-label="Sort categories Z to A" title="Sort categories Z to A">
+<div class="layer-sort" title="Sort categories">
 <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path d="M8 20V4m-4 4 4-4 4 4m4-4v16m-4-4 4 4 4-4"/></svg>
-</button>
+<select id="sort-layers" aria-label="Sort categories">
+<option value="name-asc">Name A–Z</option>
+<option value="name-desc">Name Z–A</option>
+<option value="total-desc">Most GeoJSON files</option>
+<option value="total-asc">Fewest GeoJSON files</option>
+</select>
+</div>
 <button id="expand-layers" type="button" aria-label="Expand categories to full screen" title="Expand categories to full screen">
 <svg viewBox="0 0 24 24" width="19" height="19" aria-hidden="true" focusable="false"><path d="M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"/></svg>
 </button>
